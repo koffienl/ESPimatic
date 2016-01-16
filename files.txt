@@ -1,0 +1,11 @@
+dht.html
+ds18b20.html
+filemanager.html
+firmware.html
+gpio.html
+irled.html
+ledmatrix.html
+pimatic.html
+relay.html
+root.html
+wifi.html
