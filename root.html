@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <title>ESPimatic</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+    <style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+ left: 100%;
+ margin-top: -6px;
+  margin-left: -1px;
+  -webkit-border-radius: 0 6px 6px 6px;
+ -moz-border-radius: 0 6px 6px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu>a:after {
+ display: block;
+ content: " ";
+ float: right;
+ width: 0;
+ height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #ccc;
+ margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #fff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+ left: -100%;
+  margin-left: 10px;
+  -webkit-border-radius: 6px 0 6px 6px;
+ -moz-border-radius: 6px 0 6px 6px;
+  border-radius: 6px 0 6px 6px;
+}
+.glyphicon-refresh-animate {
+ -animation: spin .7s infinite linear;
+ -webkit-animation: spin2 .7s infinite linear;
+}
+@-webkit-keyframes spin2 {
+from {
+-webkit-transform: rotate(0deg);
+}
+to {
+-webkit-transform: rotate(360deg);
+}
+}
+@keyframes spin {
+from {
+transform: scale(1) rotate(0deg);
+}
+to {
+transform: scale(1) rotate(360deg);
+}
+}
+.bs-example{
+	margin: 20px;
+}
+select option[disabled] {
+	color: red;
+}
+.btn-file {
+    position: relative;
+    overflow: hidden;
+}
+.btn-file input[type=file] {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 100%;
+    min-height: 100%;
+    font-size: 100px;
+    text-align: right;
+    filter: alpha(opacity=0);
+    opacity: 0;
+    outline: none;
+    background: white;
+    cursor: inherit;
+    display: block;
+}
+</style>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script type="text/javascript" src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css">    
+<script type="text/javascript">
+// Plain JS to show header when no JQuery available
+window.onload = function() {
+	if (!window.jQuery){  
+		document.getElementById("loading").style.display = "none";
+		document.getElementById("header").style.display = "block";
+	}
+
+	// If browser is not Android, convert clickable submenu into hover submenu
+	var ua = navigator.userAgent.toLowerCase();
+	var isAndroid = ua.indexOf("android") > -1;
+	if(!isAndroid){
+		var sheet = document.createElement("style")		
+		sheet.innerHTML = ".dropdown-submenu:hover>.dropdown-menu { display: block; }";
+		document.body.appendChild(sheet);
+	}
+}
+
+// Jquery functions
+$( document ).ready(function() {
+	var WaitForReboot = 0;
+	setInterval(CheckReboot, 2000);
+
+	// Make submenu clickable
+	$(".dropdown-submenu>a").unbind("click").click(function(e){
+		$(this).next("ul").toggle();
+		e.stopPropagation();
+		e.preventDefault();
+	});
+	// Allways start with 'RefreshData' to collect data with JQuery
+	// When finished, show full page
+	RefreshData();
+	$("#loading").hide();
+	$("#header").show();			
+
+	// RefreshData function, the URL and Succes are different for every page
+	function RefreshData(){
+		$.ajax
+		({
+			type: "GET",
+			url: "/root_ajax",
+			data: "",
+			cache: false,
+			success: function(html)
+			{
+				var values = html.split("____");
+				$("#ds18b20_temperature").html(values[0]);
+				$("#uptime").html(values[1]);
+				$("#matrix").html(values[2]);
+				$("#irled").html(values[3]);
+				$("#relay").html(values[4]);
+			
+				// Hide relay status if relay option is disabled
+				if ( values[4].indexOf('glyphicon-ban-circle') !== -1 )
+				{
+					$("#relays").hide();
+				}
+				else
+				{
+					$("#relay1").html(values[5]);
+					$("#relay2").html(values[6]);
+					$("#relay3").html(values[7]);
+					$("#relay4").html(values[8]);
+				}
+			
+				$("#version").html(values[9]);
+				$("#dht_temperature").html(values[14]);
+				$("#dht_humidity").html(values[15]);
+				var InUse = Math.round(( values[17] / (values[16] / 100) ));
+				$("#flash").html(InUse + "%");
+				
+				// Retrieve errors from ESP and show them on the page
+				if (values[10] == "1")  // error wifi
+				{
+					$("#error1").html('<div class="bs-example" id="errorblock1" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Could not connect to preferred WiFi network. Please check your network and WiFi settings.</div></div>');
+					$("#errorblock1").show();
+					$.ajax({type: "GET",url: "/api",data: {action:"clearerror",value:"wifi"},cache: false})
+				}
+				if (values[11] == "1")  // error eeprom
+				{
+					$("#error2").html('<div class="bs-example" id="errorblock2" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Eeprom values are inconsistent. please re-save all your settings.</div></div>');
+					$("#errorblock2").show();
+					$.ajax({type: "GET",data: {action:"clearerror",value:"eeprom"},url: "/api",cache: false})
+					}
+				if (values[12] == "1")  // error ds18b20
+				{
+					$("#error3").html('<div class="bs-example" id="errorblock3" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Configured DS18B20 sensor is probably not connected.</div></div>');
+					$("#errorblock3").show();
+					$.ajax({type: "GET",data: {action:"clearerror",value:"ds18b20"},url: "/api",cache: false})
+				}
+				if (values[13] == "1")  // Upgrade message
+				{
+					$("#error4").html('<div class="bs-example" id="errorblock4" style="display: none;"><div class="alert alert-success fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Succes!</strong> Succesfully installed ESPimatic version ' + values[9] + '</div></div>');
+					$("#errorblock4").show();
+					$.ajax({type: "GET",data: {action:"clearerror",value:"upgrade"},url: "/api",cache: false})
+				}
+			} 
+		});
+		};
+		
+	// Function to send Reboot command to ESP and wait to come back online. Triggered after pushing the red 'Reboot' button from the modal popup
+	function DoReboot(){
+		$("#header").hide();
+		$("#reboot").show();
+		WaitForReboot = 1;
+		$.ajax
+		({type: "GET",url: "/api",data: {action:"reboot",value:"true"},cache: false})
+	};
+
+	// Function send Reset command (clear EEPROM) to ESP. Triggered after pushing the red 'Reset' button from the modal popup
+	function DoReset(){
+		$("#header").hide();
+		$("#reboot").show();
+		WaitForReboot = 1;
+		$.ajax
+		({type: "GET",url: "/api",data: {action:"reset",value:"true"},cache: false})
+	};
+
+	// When a link to the modal-dialog is pressed, configure text and buttons. This is for reset
+	$("#DoReset").click(function(event){
+		event.preventDefault();
+		$(".modal-title1").html("Confirm factory reset");
+		$("#modal-body-text").html("Are you sure you want to reset?<br>This will erase all settings, including wifi. This option is irreversible.");
+		$("#DoFunction").html("Reset");
+		$("#DoFunction").attr("title", "DoReset");
+	});
+
+	// When a link to the modal-dialog is pressed, configure text and buttons. This is for reset
+	$("#DoReboot").click(function(event){
+		event.preventDefault();
+		$(".modal-title1").html("Confirm Reboot");
+		$("#modal-body-text").html("Are you sure yout want to reboot?");
+		$("#DoFunction").html("Reboot");
+		$("#DoFunction").attr("title", "DoReboot");
+	});
+	
+	// Function to figure out what exactly is confirmed in the modal-dialog, redirect to corresponding function
+	$("#DoFunction").click(function(){
+		$("#modal-dialog").modal("hide");
+		var linkTitle = $("#DoFunction").attr("title");
+		if (linkTitle == "DoReboot") { DoReboot(); }
+		if (linkTitle == "DoReset") { DoReset(); }
+	});
+
+	// When the 'Refresh' button is pressed, refresh all data from ESP
+	$("#refresh").click(function(){RefreshData();});
+
+	// Function to poll the ESP after a reboot command. Should Refresh data when back online again and disable polling
+	function CheckReboot(){
+		if (WaitForReboot == 1)
+		{$.ajax({url: "/ping",type: "GET",data: "",success: function(html)
+			{
+				WaitForReboot = 0;
+				$("#loading").show();
+				$("#reboot").hide();
+				RefreshData();
+				$("#loading").hide();
+				$("#header").show();
+			}
+			});	
+		}
+	};
+});
+    </script>    
+   </head>
+   <body>
+      <nav class="navbar navbar-default">
+         <div class="container-fluid">
+            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic</a></div>
+            <div>
+               <ul class="nav navbar-nav">
+                  <li class="dropdown">
+                     <a class="dropdown-toggle" data-toggle="dropdown" href="#"><span class="glyphicon glyphicon-cog"></span> Configure<span class="caret"></span></a>
+                     <ul class="dropdown-menu">
+                        <li class="dropdown-submenu">
+                           <a tabindex="-1" href="#">Hardware</a>
+                           <ul class="dropdown-menu">
+                              <li><a tabindex="-1" href="/ds18b20.html">DS18B20<span class="glyphicon glyphicon-fire pull-right"></span></a></li>
+                              <li><a href="/ledmatrix.html">LED Matrix<span class="glyphicon glyphicon-equalizer pull-right"></span></a></li>
+                              <li><a href="/irled.html">IR LED<span class="glyphicon glyphicon-eye-open pull-right"></span></a></li>
+                              <li><a href="/relay.html">Relay<span class="glyphicon glyphicon-flash pull-right"></span></a></li>
+                              <li><a href="/dht.html">DHT<span class="glyphicon glyphicon-tint pull-right"></span></a></li>
+                           </ul>
+                        </li>
+                        <li class="dropdown-submenu">
+                           <a tabindex="-1" href="#">System</a>
+                           <ul class="dropdown-menu">
+							<li><a href="/wifi.html">WiFi<span class="glyphicon glyphicon-signal pull-right"></span></a></li>
+							<li><a href="/pimatic.html">Pimatic<span class="glyphicon glyphicon-transfer pull-right"></span></a></li>
+							<li><a href="/firmware.html">Firmware<span class="glyphicon glyphicon-upload pull-right"></span></a></li>
+							<li><a href="/gpio.html">GPIO<span class="glyphicon glyphicon-th-list pull-right"></span></a></li>
+							<li><a href="/#" data-toggle="modal" data-target="#modal-dialog" id="DoReset">Reset<span class="glyphicon glyphicon-erase pull-right"></span></a></li>
+							<li><a href="/filemanager.html">Filemanager<span class="glyphicon glyphicon-list-alt pull-right"></span></a></li>
+                           </ul>
+                        </li>
+                     </ul>
+					 <li class=""><a href="#" id="refresh"><span class="glyphicon glyphicon-repeat"></span> Refresh</a></li>
+					 <li class=""><a href="#" data-toggle="modal" data-target="#modal-dialog" id="DoReboot"><span class="glyphicon glyphicon-off"></span> Reboot</a></li>
+                  </li>
+               </ul>
+            </div>
+         </div>
+      </nav>
+	<div id="modal-dialog" class="modal fade">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+					<h4 class="modal-title1">title</h4>
+				</div>
+				<div class="modal-body">
+					<p id="modal-body-text">question</p>
+					<p class="debug-url"></p>
+				</div>
+				<div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <a class="btn btn-danger btn-ok" id="DoFunction">yes</a>
+                </div>
+			</div>
+		</div>
+	</div>	  
+	<p id="error1"></p><p id="error2"></p><p id="error3"></p><p id="error4"></p>
+      <div class="container">
+      <div id="loading" class="row"><div class="col-md-4"><div class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading . . .</div></div></div>
+        <div id="reboot" class="page-header" style="display: none;">
+			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting, please wait . . .
+		</div>
+      <div id="header" class="row" style="display: none;">
+      <div class="col-md-4">
+         <div class="page-header">
+            <h1>Sensor data</h1>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-fire"></span> DS18B20 Temperature<span class="pull-right" id="ds18b20_temperature"></span></div>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body">
+				<span class="glyphicon glyphicon-fire"></span> DHT Temperature<span class="pull-right" id="dht_temperature"></span>
+				<p class="text-left"><span class="glyphicon glyphicon-tint"></span> DHT Humidity<span class="pull-right" id="dht_humidity"></span><br>
+			</div>
+         </div>
+      </div>
+      <div class="col-md-4">
+         <div class="page-header">
+            <h1>System information</h1>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-time"></span> Uptime<span class="pull-right"><span id="uptime"></span></span></div>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-thumbs-up"></span> Version<span class="pull-right"><span id="version"></span></span></div>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-hdd"></span> Flash space in use<span class="pull-right"><span id="flash"></span></span></div>
+         </div>
+	</div>
+      <div class="col-md-4">
+      <div class="page-header">
+         <h1>Device status</h1>
+      </div>
+      <div class="panel panel-default">
+         <div class="panel-body"><span class="glyphicon glyphicon-equalizer"></span> LED Matrix<span class="pull-right"><span id="matrix"></span></span></div>
+      </div>
+      <div class="panel panel-default">
+         <div class="panel-body"><span class="glyphicon glyphicon-eye-open"></span> IR LED<span class="pull-right"><span id="irled"></span></span></div>
+      </div>
+      <div class="panel panel-default">
+         <div class="panel-body">
+            <span class="glyphicon glyphicon-flash"></span> Relay<span class="pull-right"><span id="relay"></span></span>
+            <p class="text-left" id="relays"><span class="glyphicon glyphicon-flash"></span> Relay 1<span id="relay1"></span><br>
+			<span class="glyphicon glyphicon-flash"></span> Relay 2<span id="relay2"></span><br>
+			<span class="glyphicon glyphicon-flash"></span> Relay 3<span id="relay3"></span><br>
+			<span class="glyphicon glyphicon-flash"></span> Relay 4<span id="relay4"></span></p>
+            <div class="clearfix visible-lg"></div>
+         </div>
+      </div>
+	  </div>
+	  </div>
+	  </div>
+   </body>
+</html>
