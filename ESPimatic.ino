@@ -35,7 +35,7 @@ DHT dht = DHT(0, DHT11);
 IRsend irsend(5); //an IR led is connected to GPIO pin 0
 
 String sep = "____";
-String ESPimaticVersion = "0.1.1";
+String ESPimaticVersion = "0.1.2";
 String DS18B20Enabled = "0";
 String DHTEnabled = "0";
 String MatrixEnabled = "0";
@@ -468,9 +468,13 @@ void setup()
     String relay4pin = HandleEeprom(relay4pin_Address, "read");
 
     pinMode(relay1pin.toInt(), OUTPUT);
+    digitalWrite(relay1pin.toInt(), HIGH);
     pinMode(relay2pin.toInt(), OUTPUT);
+    digitalWrite(relay2pin.toInt(), HIGH);
     pinMode(relay3pin.toInt(), OUTPUT);
+    digitalWrite(relay3pin.toInt(), HIGH);
     pinMode(relay4pin.toInt(), OUTPUT);
+    digitalWrite(relay3pin.toInt(), HIGH);
 
   }
 
