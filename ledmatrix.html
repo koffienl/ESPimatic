@@ -143,6 +143,7 @@ $( document ).ready(function() {
 				var values = html.split("____");
 				$("#matrix_pin").html(values[1]);
 				$("#matrix_show").html(values[2]);
+				$("#matrix_intensity").html(values[7]);
 				$("#matrix_show option[value='0']").text("Nothing");
 				$("#matrix_show option[value='1']").text("DS18B20");
 				$("#matrix_show option[value='2']").text("DHT Temperature");
@@ -366,7 +367,14 @@ $( document ).ready(function() {
                            </select>
                         </div>
                      </div>
-                  </div>
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Default Intensity </span>
+                           <select class="form-control" name="matrix_intensity" id="matrix_intensity">
+                           </select>
+                        </div>
+                     </div>
+					</div>
                   <div class="panel-footer clearfix">
                      <div class="pull-right"><button type="submit" class="btn btn-default">Send</button></div>
                   </div>

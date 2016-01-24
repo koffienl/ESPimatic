@@ -35,7 +35,7 @@ DHT dht = DHT(0, DHT11);
 IRsend irsend(5); //an IR led is connected to GPIO pin 0
 
 String sep = "____";
-String ESPimaticVersion = "0.1.2";
+String ESPimaticVersion = "0.1.21";
 String DS18B20Enabled = "0";
 String DHTEnabled = "0";
 String MatrixEnabled = "0";
@@ -46,6 +46,7 @@ String ShowOnMatrix = "";
 String WMode = "";
 int FSTotal;
 int FSUsed;
+String MatrixIntensity;
 
 // EEPROM Adress & Length
 #define ssid_Address 0
@@ -79,8 +80,9 @@ int FSUsed;
 #define version_Address 316
 #define availablegpio_Address 324
 #define showonmatrix_Address 341
-int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address};
-int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1};
+#define matrixintensity_Address 342
+int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address};
+int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2};
 int StartAddress = 0;
 
 #define ErrorWifi 0
@@ -347,6 +349,8 @@ void setup()
   {
     String MatrixPin = HandleEeprom(matrixpin_Address, "read");
     ShowOnMatrix = HandleEeprom(showonmatrix_Address, "read");
+    MatrixIntensity = HandleEeprom(matrixintensity_Address, "read");
+
     
     LEDpin = MatrixPin.toInt();
     lc = LedControl(LEDpin, 2);
@@ -357,8 +361,8 @@ void setup()
     lc.shutdown(0, false);
     lc.shutdown(1, false);
     /* Set the brightness to a medium values */
-    lc.setIntensity(0, 8);
-    lc.setIntensity(1, 8);
+    lc.setIntensity(0, MatrixIntensity.toInt());
+    lc.setIntensity(1, MatrixIntensity.toInt());
     /* and clear the display */
     lc.clearDisplay(0);
     lc.clearDisplay(1);
@@ -721,12 +725,17 @@ void handle_api()
   }
 
 
-  if (action == "matrix_brightness" && value != "")
+  if (action == "matrix_brightness" && value != "status")
   {
-    //int state = value.toInt();
-    server.send ( 200, "text/html", "OK");
     lc.setIntensity(0, value.toInt());
     lc.setIntensity(1, value.toInt());
+    MatrixIntensity = value;
+    server.send ( 200, "text/html", "OK");
+  }
+
+  if (action == "matrix_brightness" && value == "status")
+  {
+    server.send ( 200, "text/html", MatrixIntensity);
   }
 
   if (action == "matrix_display" && value == "on")
@@ -749,12 +758,25 @@ void handle_api()
     if (value == "on")
     {
       digitalWrite(relay1_pin.toInt(), LOW);
+      server.send ( 200, "text/html", "OK");
     }
     if (value == "off")
     {
       digitalWrite(relay1_pin.toInt(), HIGH);
+      server.send ( 200, "text/html", "OK");
     }
-    server.send ( 200, "text/html", "OK");
+    if (value == "status")
+    {
+      int relay1_status = digitalRead(relay1_pin.toInt());
+      if (relay1_status == 0)
+      {
+        server.send ( 200, "text/html", "on");
+      }
+      else
+      {
+        server.send ( 200, "text/html", "off");
+      }
+    }
   }
 
   if (action == "relay2")
@@ -763,12 +785,25 @@ void handle_api()
     if (value == "on")
     {
       digitalWrite(relay2_pin.toInt(), LOW);
+      server.send ( 200, "text/html", "OK");
     }
     if (value == "off")
     {
       digitalWrite(relay2_pin.toInt(), HIGH);
+      server.send ( 200, "text/html", "OK");
     }
-    server.send ( 200, "text/html", "OK");
+    if (value == "status")
+    {
+      int relay2_status = digitalRead(relay2_pin.toInt());
+      if (relay2_status == 0)
+      {
+        server.send ( 200, "text/html", "on");
+      }
+      else
+      {
+        server.send ( 200, "text/html", "off");
+      }
+    }
   }
 
   if (action == "relay3")
@@ -777,12 +812,25 @@ void handle_api()
     if (value == "on")
     {
       digitalWrite(relay3_pin.toInt(), LOW);
+      server.send ( 200, "text/html", "OK");
     }
     if (value == "off")
     {
       digitalWrite(relay3_pin.toInt(), HIGH);
+      server.send ( 200, "text/html", "OK");
     }
-    server.send ( 200, "text/html", "OK");
+    if (value == "status")
+    {
+      int relay3_status = digitalRead(relay3_pin.toInt());
+      if (relay3_status == 0)
+      {
+        server.send ( 200, "text/html", "on");
+      }
+      else
+      {
+        server.send ( 200, "text/html", "off");
+      }
+    }
   }
 
   if (action == "relay4")
@@ -791,12 +839,25 @@ void handle_api()
     if (value == "on")
     {
       digitalWrite(relay4_pin.toInt(), LOW);
+      server.send ( 200, "text/html", "OK");
     }
     if (value == "off")
     {
       digitalWrite(relay4_pin.toInt(), HIGH);
+      server.send ( 200, "text/html", "OK");
     }
-    server.send ( 200, "text/html", "OK");
+    if (value == "status")
+    {
+      int relay4_status = digitalRead(relay4_pin.toInt());
+      if (relay4_status == 0)
+      {
+        server.send ( 200, "text/html", "on");
+      }
+      else
+      {
+        server.send ( 200, "text/html", "off");
+      }
+    }
   }
   
   if (action == "clearerror" && value == "wifi")
@@ -922,7 +983,9 @@ void handle_ledmatrix_ajax()
     String matrix_enable = HandleEeprom(enablematrix_Address, "read");
     String matrix_pin = HandleEeprom(matrixpin_Address, "read");
     String matrix_show = HandleEeprom(showonmatrix_Address, "read");
+    String matrix_intensity = HandleEeprom(matrixintensity_Address, "read");
     String matrixshow_listbox = ListBox(0, 3, matrix_show.toInt(), "matrix_show");
+    String matrixintensity_listbox = ListBox(0, 15, matrix_intensity.toInt(), "matrix_intensity");
     String matrix_listbox = "";
     if (matrix_pin != "")
     {
@@ -934,13 +997,14 @@ void handle_ledmatrix_ajax()
     }
 
     // Glue everything together and send to client
-    server.send(200, "text/html", matrix_enable + sep + matrix_listbox + sep + matrixshow_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    server.send(200, "text/html", matrix_enable + sep + matrix_listbox + sep + matrixshow_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + matrixintensity_listbox);
   }
   if (form == "matrix")
   {
     String matrix_boolArg = server.arg("matrix_bool");
     String matrix_pinArg = server.arg("matrix_pin");
     String matrix_showArg = server.arg("matrix_show");
+    String matrix_intensityArg = server.arg("matrix_intensity");
 
     if (matrix_boolArg == "on")
     {
@@ -956,6 +1020,7 @@ void handle_ledmatrix_ajax()
     HandleEeprom(enablematrix_Address, "write", matrix_boolArg);
     HandleEeprom(matrixpin_Address, "write", matrix_pinArg);
     HandleEeprom(showonmatrix_Address, "write", matrix_showArg);
+    HandleEeprom(matrixintensity_Address, "write", matrix_intensityArg);
 
     server.send ( 200, "text/html", "OK");
     delay(500);

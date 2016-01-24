@@ -1,0 +1,12 @@
+0.1.1
+Initial release
+
+0.1.2
+Bugs fixed:
+Relays were set to ON at startup, changed to OFF
+
+0.1.21
+Features added:
+Retrieve relay status through API
+Retrieve LED Matrix status through API
+Set initial LED Matrix intenisty in config
