@@ -12,5 +12,12 @@ Retrieve LED Matrix status through API
 Set initial LED Matrix intenisty in config
 
 0.1.22
-Bug(s) fixed
+Bug(s) fixed:
 The ESP would connect to previous SoftAP and/or Networks on starting up. Should be fixed now with the use of WiFi.mode()
+Uptime resetted after 24 hours, days added. 365 days ought to be enough for anybody
+Error message from ESP were missing on DHT page
+Version upgrade message fixed on all pages
+Feature(s) added:
+Added relay types for Active High and Active Low
+Changed some icons into Font Awesome Icons
+Added multiple file upload for uploading HTML files

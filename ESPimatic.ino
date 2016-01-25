@@ -81,8 +81,12 @@ String MatrixIntensity;
 #define availablegpio_Address 324
 #define showonmatrix_Address 341
 #define matrixintensity_Address 342
-int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address};
-int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2};
+#define relay1type_Address 344
+#define relay2type_Address 345
+#define relay3type_Address 346
+#define relay4type_Address 347
+int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address, relay1type_Address, relay2type_Address, relay3type_Address, relay4type_Address};
+int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2, 1, 1 ,1 ,1};
 int StartAddress = 0;
 
 #define ErrorWifi 0
@@ -297,7 +301,6 @@ void setup()
 {
   Serial.begin(115200);
   delay(500);
-
   int SizeOfArr = (sizeof(EepromAdress) / 4 ) - 1 ;
   int eeprom_alloc = EepromAdress[SizeOfArr] + EepromLength[SizeOfArr];
   EEPROM.begin(eeprom_alloc);
@@ -470,18 +473,53 @@ void setup()
   if (RelayEnabled == "1")
   {
     String relay1pin = HandleEeprom(relay1pin_Address, "read");
+    String relay1type = HandleEeprom(relay1type_Address, "read");
     String relay2pin = HandleEeprom(relay2pin_Address, "read");
+    String relay2type = HandleEeprom(relay2type_Address, "read");
     String relay3pin = HandleEeprom(relay3pin_Address, "read");
+    String relay3type = HandleEeprom(relay3type_Address, "read");
     String relay4pin = HandleEeprom(relay4pin_Address, "read");
+    String relay4type = HandleEeprom(relay4type_Address, "read");
 
     pinMode(relay1pin.toInt(), OUTPUT);
-    digitalWrite(relay1pin.toInt(), HIGH);
+    if (relay1type == "0")
+    {
+      digitalWrite(relay1pin.toInt(), HIGH);
+    }
+    else
+    {
+      digitalWrite(relay1pin.toInt(), LOW);
+    }
+    
     pinMode(relay2pin.toInt(), OUTPUT);
-    digitalWrite(relay2pin.toInt(), HIGH);
+    if (relay2type == "0")
+    {
+      digitalWrite(relay2pin.toInt(), HIGH);
+    }
+    else
+    {
+      digitalWrite(relay2pin.toInt(), LOW);
+    }
+    
     pinMode(relay3pin.toInt(), OUTPUT);
-    digitalWrite(relay3pin.toInt(), HIGH);
+    if (relay3type == "0")
+    {
+      digitalWrite(relay3pin.toInt(), HIGH);
+    }
+    else
+    {
+      digitalWrite(relay3pin.toInt(), LOW);
+    }
+
     pinMode(relay4pin.toInt(), OUTPUT);
-    digitalWrite(relay3pin.toInt(), HIGH);
+    if (relay4type == "0")
+    {
+      digitalWrite(relay4pin.toInt(), HIGH);
+    }
+    else
+    {
+      digitalWrite(relay4pin.toInt(), LOW);
+    }
 
   }
 
@@ -758,26 +796,37 @@ void handle_api()
   if (action == "relay1")
   {
     String relay1_pin = HandleEeprom(relay1pin_Address, "read");
+    String relay1type = HandleEeprom(relay1type_Address, "read");
     if (value == "on")
     {
-      digitalWrite(relay1_pin.toInt(), LOW);
+      if (relay1type == "0") { digitalWrite(relay1_pin.toInt(), LOW); }
+      if (relay1type == "1") { digitalWrite(relay1_pin.toInt(), HIGH); }
       server.send ( 200, "text/html", "OK");
     }
     if (value == "off")
     {
-      digitalWrite(relay1_pin.toInt(), HIGH);
+      if (relay1type == "0") { digitalWrite(relay1_pin.toInt(), HIGH); }
+      if (relay1type == "1") { digitalWrite(relay1_pin.toInt(), LOW); }
       server.send ( 200, "text/html", "OK");
     }
     if (value == "status")
     {
       int relay1_status = digitalRead(relay1_pin.toInt());
-      if (relay1_status == 0)
+      if (relay1_status == 0 && relay1type == "0")
       {
         server.send ( 200, "text/html", "on");
       }
-      else
+      if (relay1_status == 0 && relay1type == "1")
       {
         server.send ( 200, "text/html", "off");
+      }
+      if (relay1_status == 1 && relay1type == "0")
+      {
+        server.send ( 200, "text/html", "off");
+      }
+      if (relay1_status == 1 && relay1type == "1")
+      {
+        server.send ( 200, "text/html", "on");
       }
     }
   }
@@ -785,26 +834,37 @@ void handle_api()
   if (action == "relay2")
   {
     String relay2_pin = HandleEeprom(relay2pin_Address, "read");
+    String relay2type = HandleEeprom(relay2type_Address, "read");
     if (value == "on")
     {
-      digitalWrite(relay2_pin.toInt(), LOW);
+      if (relay2type == "0") { digitalWrite(relay2_pin.toInt(), LOW); }
+      if (relay2type == "1") { digitalWrite(relay2_pin.toInt(), HIGH); }
       server.send ( 200, "text/html", "OK");
     }
     if (value == "off")
     {
-      digitalWrite(relay2_pin.toInt(), HIGH);
+      if (relay2type == "0") { digitalWrite(relay2_pin.toInt(), HIGH); }
+      if (relay2type == "1") { digitalWrite(relay2_pin.toInt(), LOW); }
       server.send ( 200, "text/html", "OK");
     }
     if (value == "status")
     {
       int relay2_status = digitalRead(relay2_pin.toInt());
-      if (relay2_status == 0)
+      if (relay2_status == 0 && relay2type == "0")
       {
         server.send ( 200, "text/html", "on");
       }
-      else
+      if (relay2_status == 0 && relay2type == "1")
       {
         server.send ( 200, "text/html", "off");
+      }
+      if (relay2_status == 1 && relay2type == "0")
+      {
+        server.send ( 200, "text/html", "off");
+      }
+      if (relay2_status == 1 && relay2type == "1")
+      {
+        server.send ( 200, "text/html", "on");
       }
     }
   }
@@ -812,53 +872,75 @@ void handle_api()
   if (action == "relay3")
   {
     String relay3_pin = HandleEeprom(relay3pin_Address, "read");
+    String relay3type = HandleEeprom(relay3type_Address, "read");
     if (value == "on")
     {
-      digitalWrite(relay3_pin.toInt(), LOW);
+      if (relay3type == "0") { digitalWrite(relay3_pin.toInt(), LOW); }
+      if (relay3type == "1") { digitalWrite(relay3_pin.toInt(), HIGH); }
       server.send ( 200, "text/html", "OK");
     }
     if (value == "off")
     {
-      digitalWrite(relay3_pin.toInt(), HIGH);
+      if (relay3type == "0") { digitalWrite(relay3_pin.toInt(), HIGH); }
+      if (relay3type == "1") { digitalWrite(relay3_pin.toInt(), LOW); }
       server.send ( 200, "text/html", "OK");
     }
     if (value == "status")
     {
       int relay3_status = digitalRead(relay3_pin.toInt());
-      if (relay3_status == 0)
+      if (relay3_status == 0 && relay3type == "0")
       {
         server.send ( 200, "text/html", "on");
       }
-      else
+      if (relay3_status == 0 && relay3type == "1")
       {
         server.send ( 200, "text/html", "off");
+      }
+      if (relay3_status == 1 && relay3type == "0")
+      {
+        server.send ( 200, "text/html", "off");
+      }
+      if (relay3_status == 1 && relay3type == "1")
+      {
+        server.send ( 200, "text/html", "on");
       }
     }
   }
 
-  if (action == "relay4")
+    if (action == "relay4")
   {
     String relay4_pin = HandleEeprom(relay4pin_Address, "read");
+    String relay4type = HandleEeprom(relay4type_Address, "read");
     if (value == "on")
     {
-      digitalWrite(relay4_pin.toInt(), LOW);
+      if (relay4type == "0") { digitalWrite(relay4_pin.toInt(), LOW); }
+      if (relay4type == "1") { digitalWrite(relay4_pin.toInt(), HIGH); }
       server.send ( 200, "text/html", "OK");
     }
     if (value == "off")
     {
-      digitalWrite(relay4_pin.toInt(), HIGH);
+      if (relay4type == "0") { digitalWrite(relay4_pin.toInt(), HIGH); }
+      if (relay4type == "1") { digitalWrite(relay4_pin.toInt(), LOW); }
       server.send ( 200, "text/html", "OK");
     }
     if (value == "status")
     {
       int relay4_status = digitalRead(relay4_pin.toInt());
-      if (relay4_status == 0)
+      if (relay4_status == 0 && relay4type == "0")
       {
         server.send ( 200, "text/html", "on");
       }
-      else
+      if (relay4_status == 0 && relay4type == "1")
       {
         server.send ( 200, "text/html", "off");
+      }
+      if (relay4_status == 1 && relay4type == "0")
+      {
+        server.send ( 200, "text/html", "off");
+      }
+      if (relay4_status == 1 && relay4type == "1")
+      {
+        server.send ( 200, "text/html", "on");
       }
     }
   }
@@ -939,7 +1021,7 @@ void handle_fupload_html()
       //Serial.printf("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
     }
   
-  server.send ( 200, "text/html", "<form method='POST' action='/fupload2' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form><br<b>For webfiles only!!</b><br>" + HTML);
+  server.send ( 200, "text/html", "<form method='POST' action='/fupload2' enctype='multipart/form-data'><input type='file' name='update' multiple><input type='submit' value='Update'></form><br<b>For webfiles only!!</b>Multiple files possible<br>" + HTML);
 }
 
 
@@ -1164,6 +1246,15 @@ void handle_relay_ajax()
     String relay2_pin = HandleEeprom(relay2pin_Address, "read");
     String relay3_pin = HandleEeprom(relay3pin_Address, "read");
     String relay4_pin = HandleEeprom(relay4pin_Address, "read");
+    String relay1type = HandleEeprom(relay1type_Address, "read");
+    String relay2type = HandleEeprom(relay2type_Address, "read");
+    String relay3type = HandleEeprom(relay3type_Address, "read");
+    String relay4type = HandleEeprom(relay4type_Address, "read");
+
+    String relay1type_listbox = ListBox(0, 1, relay1type.toInt(), "relay1_type");
+    String relay2type_listbox = ListBox(0, 1, relay2type.toInt(), "relay2_type");
+    String relay3type_listbox = ListBox(0, 1, relay3type.toInt(), "relay3_type");
+    String relay4type_listbox = ListBox(0, 1, relay4type.toInt(), "relay4_type");
 
     String relay1_listbox = "";
     if (relay1_pin != "")
@@ -1213,7 +1304,7 @@ void handle_relay_ajax()
     
 
     // Glue everything together and send to client
-    server.send(200, "text/html", relay_enable + sep + relay1_listbox + sep + relay2_listbox + sep + relay3_listbox + sep + relay4_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    server.send(200, "text/html", relay_enable + sep + relay1_listbox + sep + relay2_listbox + sep + relay3_listbox + sep + relay4_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + relay1type_listbox + sep + relay2type_listbox + sep + relay3type_listbox + sep + relay4type_listbox);
   }
   if (form == "relay")
   {
@@ -1222,6 +1313,10 @@ void handle_relay_ajax()
     String relay2_pinArg = server.arg("relay2_pin");
     String relay3_pinArg = server.arg("relay3_pin");
     String relay4_pinArg = server.arg("relay4_pin");
+    String relay1_typeArg = server.arg("relay1_type");
+    String relay2_typeArg = server.arg("relay2_type");
+    String relay3_typeArg = server.arg("relay3_type");
+    String relay4_typeArg = server.arg("relay4_type");
 
     if (relay_boolArg == "on")
     {
@@ -1235,10 +1330,10 @@ void handle_relay_ajax()
       String relay2_pin = HandleEeprom(relay2pin_Address, "read");
       String relay3_pin = HandleEeprom(relay3pin_Address, "read");
       String relay4_pin = HandleEeprom(relay3pin_Address, "read");
-      digitalWrite(relay1_pin.toInt(), LOW);
-      digitalWrite(relay2_pin.toInt(), LOW);
-      digitalWrite(relay3_pin.toInt(), LOW);
-      digitalWrite(relay4_pin.toInt(), LOW);
+      //digitalWrite(relay1_pin.toInt(), LOW);
+      //digitalWrite(relay2_pin.toInt(), LOW);
+      //digitalWrite(relay3_pin.toInt(), LOW);
+      //digitalWrite(relay4_pin.toInt(), LOW);
     }
 
     HandleEeprom(enablerelay_Address, "write", relay_boolArg);
@@ -1246,6 +1341,10 @@ void handle_relay_ajax()
     HandleEeprom(relay2pin_Address, "write", relay2_pinArg);
     HandleEeprom(relay3pin_Address, "write", relay3_pinArg);
     HandleEeprom(relay4pin_Address, "write", relay4_pinArg);
+    HandleEeprom(relay1type_Address, "write", relay1_typeArg);
+    HandleEeprom(relay2type_Address, "write", relay2_typeArg);
+    HandleEeprom(relay3type_Address, "write", relay3_typeArg);
+    HandleEeprom(relay4type_Address, "write", relay4_typeArg);
 
     server.send ( 200, "text/html", "OK");
     delay(500);
@@ -1285,7 +1384,9 @@ void handle_root_ajax()
   long seconds    = (long) ((timeElapsed / (1000)) % 60);
   long minutes    = (long) ((timeElapsed / (60000)) % 60);
   long hours      = (long) ((timeElapsed / (3600000)) % 24);
-  String Uptime     = hours + String(" h ") + minutes + String(" min ") + seconds + String(" sec");
+  long days       = (long) ((timeElapsed / (86400000)) % 10);
+  
+  String Uptime     = days + String (" d ") + hours + String(" h ") + minutes + String(" min ") + seconds + String(" sec");
 
   // Collect everything for LED Matrix
   String MatrixEnabled = HandleEeprom(enablematrix_Address, "read");
@@ -1318,32 +1419,58 @@ void handle_root_ajax()
     String relay2pin = HandleEeprom(relay2pin_Address, "read");
     String relay3pin = HandleEeprom(relay3pin_Address, "read");
     String relay4pin = HandleEeprom(relay4pin_Address, "read");
+    String relay1type = HandleEeprom(relay1type_Address, "read");
+    String relay2type = HandleEeprom(relay2type_Address, "read");
+    String relay3type = HandleEeprom(relay3type_Address, "read");
+    String relay4type = HandleEeprom(relay4type_Address, "read");
+
     int relay1_status = digitalRead(relay1pin.toInt());
     int relay2_status = digitalRead(relay2pin.toInt());
     int relay3_status = digitalRead(relay3pin.toInt());
     int relay4_status = digitalRead(relay4pin.toInt());
 
-    if (relay1_status == 0)
-    {
-      relay1 = relay_on;
-    }
-    if (relay2_status == 0)
-    {
-      relay2 = relay_on;
-    }
-    if (relay3_status == 0)
-    {
-      relay3 = relay_on;
-    }
-    if (relay4_status == 0)
-    {
-      relay4 = relay_on;
-    }
+      if (relay1_status == 0 && relay1type == "0")
+      {
+        relay1 = relay_on;
+      }
+      if (relay1_status == 1 && relay1type == "1")
+      {
+        relay1 = relay_on;
+      }
+
+      if (relay2_status == 0 && relay2type == "0")
+      {
+        relay2 = relay_on;
+      }
+      if (relay2_status == 1 && relay2type == "1")
+      {
+        relay2 = relay_on;
+      }
+
+      if (relay3_status == 0 && relay3type == "0")
+      {
+        relay3 = relay_on;
+      }
+      if (relay3_status == 1 && relay3type == "1")
+      {
+        relay3 = relay_on;
+      }
+
+      if (relay4_status == 0 && relay4type == "0")
+      {
+        relay4 = relay_on;
+      }
+      if (relay4_status == 1 && relay4type == "1")
+      {
+        relay4 = relay_on;
+      }
+
   }
 
+  int FreeHeap = ESP.getFreeHeap();
 
   // Glue everything together and send to client
-  server.send(200, "text/html", temperature + sep + Uptime + sep + matrix + sep + ir + sep + relay + sep + relay1 + sep + relay2 + sep + relay3 + sep + relay4 + sep + ESPimaticVersion + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + dht_temp + sep + dht_hum + sep + FSTotal + sep + FSUsed);
+  server.send(200, "text/html", temperature + sep + Uptime + sep + matrix + sep + ir + sep + relay + sep + relay1 + sep + relay2 + sep + relay3 + sep + relay4 + sep + ESPimaticVersion + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + dht_temp + sep + dht_hum + sep + FSTotal + sep + FSUsed + sep + FreeHeap);
 }
 
 
@@ -1431,7 +1558,7 @@ void handle_dht_ajax()
     String dht_typelistbox = ListBox(1, 2, dht_type.toInt(), "dht_type");
 
     // Glue everything together and send to client
-    server.send(200, "text/html", dht_enable + sep + dht_listbox + sep + dht_intlistbox + sep + dht_typelistbox + sep + dhttemp_var + sep + dhthum_var);
+    server.send(200, "text/html", dht_enable + sep + dht_listbox + sep + dht_intlistbox + sep + dht_typelistbox + sep + dhttemp_var + sep + dhthum_var + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
   }
   if (form == "dht")
   {

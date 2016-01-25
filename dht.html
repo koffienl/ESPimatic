@@ -152,6 +152,32 @@ $( document ).ready(function() {
 				{
 					$("input[name=dht_bool]").prop("checked", false);
 				}
+				
+				// Retrieve errors from ESP and show them on the page
+				if (values[6] == "1")  // error wifi
+				{
+					$("#error1").html('<div class="bs-example" id="errorblock1" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Could not connect to preferred WiFi network. Please check your network and WiFi settings.</div></div>');
+					$("#errorblock1").show();
+					$.ajax({type: "GET",url: "/api",data: {action:"clearerror",value:"wifi"},cache: false})
+				}
+				if (values[7] == "1")  // error eeprom
+				{
+					$("#error2").html('<div class="bs-example" id="errorblock2" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Eeprom values are inconsistent. please re-save all your settings.</div></div>');
+					$("#errorblock2").show();
+					$.ajax({type: "GET",data: {action:"clearerror",value:"eeprom"},url: "/api",cache: false})
+					}
+				if (values[8] == "1")  // error ds18b20
+				{
+					$("#error3").html('<div class="bs-example" id="errorblock3" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Configured DS18B20 sensor is probably not connected.</div></div>');
+					$("#errorblock3").show();
+					$.ajax({type: "GET",data: {action:"clearerror",value:"ds18b20"},url: "/api",cache: false})
+				}
+				if (values[9] == "1")  // Upgrade message
+				{
+					$("#error4").html('<div class="bs-example" id="errorblock4" style="display: none;"><div class="alert alert-success fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Succes!</strong> Succesfully installed new ESPimatic version</div></div>');
+					$("#errorblock4").show();
+					$.ajax({type: "GET",data: {action:"clearerror",value:"upgrade"},url: "/api",cache: false})
+				}
 			}
 		});
 		};

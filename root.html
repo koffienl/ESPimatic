@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
    <head>
-      <title>ESPimatic</title>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
-    <style type="text/css">
+    <title>ESPimatic</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+	<style type="text/css">
 .dropdown-submenu {
   position: relative;
 }
@@ -163,6 +164,7 @@ $( document ).ready(function() {
 				$("#dht_humidity").html(values[15]);
 				var InUse = Math.round(( values[17] / (values[16] / 100) ));
 				$("#flash").html(InUse + "%");
+				$("#memory").html(values[18] + " bytes");
 				
 				// Retrieve errors from ESP and show them on the page
 				if (values[10] == "1")  // error wifi
@@ -272,7 +274,7 @@ $( document ).ready(function() {
                            <ul class="dropdown-menu">
                               <li><a tabindex="-1" href="/ds18b20.html">DS18B20<span class="glyphicon glyphicon-fire pull-right"></span></a></li>
                               <li><a href="/ledmatrix.html">LED Matrix<span class="glyphicon glyphicon-equalizer pull-right"></span></a></li>
-                              <li><a href="/irled.html">IR LED<span class="glyphicon glyphicon-eye-open pull-right"></span></a></li>
+                              <li><a href="/irled.html">IR LED<span class="fa fa-rss pull-right"></span></a></li>
                               <li><a href="/relay.html">Relay<span class="glyphicon glyphicon-flash pull-right"></span></a></li>
                               <li><a href="/dht.html">DHT<span class="glyphicon glyphicon-tint pull-right"></span></a></li>
                            </ul>
@@ -280,12 +282,12 @@ $( document ).ready(function() {
                         <li class="dropdown-submenu">
                            <a tabindex="-1" href="#">System</a>
                            <ul class="dropdown-menu">
-							<li><a href="/wifi.html">WiFi<span class="glyphicon glyphicon-signal pull-right"></span></a></li>
-							<li><a href="/pimatic.html">Pimatic<span class="glyphicon glyphicon-transfer pull-right"></span></a></li>
+							<li><a href="/wifi.html">WiFi<span class="fa fa-wifi pull-right"></span></a></li>
+							<li><a href="/pimatic.html">Pimatic<span class="fa fa-home pull-right"></span></a></li>
 							<li><a href="/firmware.html">Firmware<span class="glyphicon glyphicon-upload pull-right"></span></a></li>
-							<li><a href="/gpio.html">GPIO<span class="glyphicon glyphicon-th-list pull-right"></span></a></li>
+							<li><a href="/gpio.html">GPIO<span class="fa fa-list-ol pull-right"></span></a></li>
 							<li><a href="/#" data-toggle="modal" data-target="#modal-dialog" id="DoReset">Reset<span class="glyphicon glyphicon-erase pull-right"></span></a></li>
-							<li><a href="/filemanager.html">Filemanager<span class="glyphicon glyphicon-list-alt pull-right"></span></a></li>
+							<li><a href="/filemanager.html">Filemanager<span class="fa fa-files-o pull-right"></span></a></li>
                            </ul>
                         </li>
                      </ul>
@@ -343,10 +345,13 @@ $( document ).ready(function() {
             <div class="panel-body"><span class="glyphicon glyphicon-time"></span> Uptime<span class="pull-right"><span id="uptime"></span></span></div>
          </div>
          <div class="panel panel-default">
-            <div class="panel-body"><span class="glyphicon glyphicon-thumbs-up"></span> Version<span class="pull-right"><span id="version"></span></span></div>
+            <div class="panel-body"><span class="fa fa-info-circle"></span> Version<span class="pull-right"><span id="version"></span></span></div>
          </div>
          <div class="panel panel-default">
             <div class="panel-body"><span class="glyphicon glyphicon-hdd"></span> Flash space in use<span class="pull-right"><span id="flash"></span></span></div>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="fa fa-area-chart"></span> Free memory<span class="pull-right"><span id="memory"></span></span></div>
          </div>
 	</div>
       <div class="col-md-4">
@@ -357,7 +362,7 @@ $( document ).ready(function() {
          <div class="panel-body"><span class="glyphicon glyphicon-equalizer"></span> LED Matrix<span class="pull-right"><span id="matrix"></span></span></div>
       </div>
       <div class="panel panel-default">
-         <div class="panel-body"><span class="glyphicon glyphicon-eye-open"></span> IR LED<span class="pull-right"><span id="irled"></span></span></div>
+         <div class="panel-body"><span class="fa fa-rss"></span> IR LED<span class="pull-right"><span id="irled"></span></span></div>
       </div>
       <div class="panel panel-default">
          <div class="panel-body">
