@@ -2021,3 +2021,4 @@ void handleFileDelete() {
   server.send(200, "text/plain", "");
   path = String();
 }
+
