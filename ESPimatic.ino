@@ -35,7 +35,7 @@ DHT dht = DHT(0, DHT11);
 IRsend irsend(5); //an IR led is connected to GPIO pin 0
 
 String sep = "____";
-String ESPimaticVersion = "0.1.22";
+String ESPimaticVersion = "0.1.23";
 String DS18B20Enabled = "0";
 String DHTEnabled = "0";
 String MatrixEnabled = "0";
