@@ -2,11 +2,15 @@
 Initial release
 
 0.1.2
-Bugs fixed:
+Bug(s) fixed:
 Relays were set to ON at startup, changed to OFF
 
 0.1.21
-Features added:
+Feature(s) added:
 Retrieve relay status through API
 Retrieve LED Matrix status through API
 Set initial LED Matrix intenisty in config
+
+0.1.22
+Bug(s) fixed
+The ESP would connect to previous SoftAP and/or Networks on starting up. Should be fixed now with the use of WiFi.mode()

@@ -35,7 +35,7 @@ DHT dht = DHT(0, DHT11);
 IRsend irsend(5); //an IR led is connected to GPIO pin 0
 
 String sep = "____";
-String ESPimaticVersion = "0.1.21";
+String ESPimaticVersion = "0.1.22";
 String DS18B20Enabled = "0";
 String DHTEnabled = "0";
 String MatrixEnabled = "0";
@@ -378,6 +378,7 @@ void setup()
     Serial.println(APssid);
     Serial.println("password: ");
     Serial.println(APpassword);
+    WiFi.mode(WIFI_AP);
     WiFi.softAP(APssid, APpassword);
     WMode = "AP";
     Serial.print("Connected to ");
@@ -398,6 +399,7 @@ void setup()
     int col = 0;
     Serial.println("Connecting to :");
     Serial.println(ssidStored);
+    WiFi.mode(WIFI_STA);
     WiFi.begin(ssidStored.c_str(), passStored.c_str());
     while (WiFi.status() != WL_CONNECTED && i < 31 && MatrixEnabled == "1")
     {
@@ -433,6 +435,7 @@ void setup()
       Serial.println(APssid);
       Serial.println("password: ");
       Serial.println(APpassword);
+      WiFi.mode(WIFI_AP);
       WiFi.softAP(APssid, APpassword);
       WMode = "AP";
       Serial.print("Connected to ");
