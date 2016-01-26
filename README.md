@@ -19,6 +19,10 @@ Your ESP should now be fully functional. In the menu go to System -> GPIO and ch
 Go to System -> Pimatic and configure your Pimatic API credentials.
 Now you can configure your sensors connected to ESP.
 
+# Compiling
+There are reports about not compiling on some Arduino IDE versions.
+Please use Arduino IDE 1.6.5 with esp8266 2.0.0 (with boards manager)
+
 # Connecting MAX7219
 The LED Matrix has 5 wires:
 VCC
