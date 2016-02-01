@@ -1847,7 +1847,7 @@ void handle_login_ajax()
 
     if (UserArg == WebUser && passArg == WebPass)
     {
-      String header = "HTTP/1.1 301 OK\r\nSet-Cookie: ESPIMATIC=" + WebPassMD5 + "; max-age=300\r\nLocation: /\r\nCache-Control: no-cache\r\n\r\n";      
+      String header = "HTTP/1.1 301 OK\r\nSet-Cookie: ESPIMATIC=" + WebPassMD5 + "; max-age=86400\r\nLocation: /\r\nCache-Control: no-cache\r\n\r\n";      
       server.sendContent(header);
     }
     else
@@ -2316,7 +2316,7 @@ void handleFileDelete()
 void handle_loginm_html()
 {
   String content = "<html><body><form action='/login_ajax' method='POST'>Please login<br>";
-  content += "]<input type='hidden' name='form' value='login'>";
+  content += "<input type='hidden' name='form' value='login'>";
   content += "User:<input type='text' name='user' placeholder='user name'><br>";
   content += "Password:<input type='password' name='password' placeholder='password'><br>";
   content += "<input type='submit' name='SUBMIT' value='Submit'></form><br>";
@@ -2340,12 +2340,10 @@ bool is_authenticated(int SetCookie)
     String cookie = server.header("Cookie");
     if (cookie.indexOf(ValidCookie) != -1)
     {
-      //String header = "HTTP/1.1 301 OK\r\nSet-Cookie: ESPIMATIC=" + WebPassMD5 + "; max-age=300\r\n\r\nCache-Control: no-cache\r\n\r\n";      
-      //server.sendContent(header);
       if (SetCookie == 1)
       {
-        server.sendHeader("Set-Cookie","ESPIMATIC=" + WebPassMD5 + "; max-age=300"); 
-        }
+        server.sendHeader("Set-Cookie","ESPIMATIC=" + WebPassMD5 + "; max-age=86400"); 
+      }
       return true;
     }
   }
