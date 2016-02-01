@@ -22,7 +22,6 @@ var menu = '      <nav class="navbar navbar-default">' +
 '							<li><a href="/wifi.html">WiFi<span class="glyphicon glyphicon-signal pull-right"></span></a></li>' +
 '							<li><a href="/pimatic.html">Pimatic<span class="glyphicon glyphicon-transfer pull-right"></span></a></li>' +
 '							<li><a href="/firmware.html">Firmware<span class="glyphicon glyphicon-upload pull-right"></span></a></li>' +
-'							<li><a href="/gpio.html">GPIO<span class="glyphicon glyphicon-th-list pull-right"></span></a></li>' +
 '							<li><a href="/#" data-toggle="modal" data-target="#modal-dialog" id="DoReset">Reset<span class="glyphicon glyphicon-erase pull-right"></span></a></li>' +
 '							<li><a href="/filemanager.html">Filemanager<span class="glyphicon glyphicon-list-alt pull-right"></span></a></li>' +
 '							<li><a href="/esp.html">System<span class="glyphicon glyphicon-tasks pull-right"></span></a></li>' +
