@@ -1,103 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
    <head>
+      <script src="/js/insert.js"></script>
       <title>ESPimatic</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
-	  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
-    <style type="text/css">
-.dropdown-submenu {
-  position: relative;
-}
-.dropdown-submenu>.dropdown-menu {
-  top: 0;
- left: 100%;
- margin-top: -6px;
-  margin-left: -1px;
-  -webkit-border-radius: 0 6px 6px 6px;
- -moz-border-radius: 0 6px 6px;
-  border-radius: 0 6px 6px 6px;
-}
-.dropdown-submenu>a:after {
- display: block;
- content: " ";
- float: right;
- width: 0;
- height: 0;
-  border-color: transparent;
-  border-style: solid;
-  border-width: 5px 0 5px 5px;
-  border-left-color: #ccc;
- margin-top: 5px;
-  margin-right: -10px;
-}
-.dropdown-submenu:hover>a:after {
-  border-left-color: #fff;
-}
-.dropdown-submenu.pull-left {
-  float: none;
-}
-.dropdown-submenu.pull-left>.dropdown-menu {
- left: -100%;
-  margin-left: 10px;
-  -webkit-border-radius: 6px 0 6px 6px;
- -moz-border-radius: 6px 0 6px 6px;
-  border-radius: 6px 0 6px 6px;
-}
-.glyphicon-refresh-animate {
- -animation: spin .7s infinite linear;
- -webkit-animation: spin2 .7s infinite linear;
-}
-@-webkit-keyframes spin2 {
-from {
--webkit-transform: rotate(0deg);
-}
-to {
--webkit-transform: rotate(360deg);
-}
-}
-@keyframes spin {
-from {
-transform: scale(1) rotate(0deg);
-}
-to {
-transform: scale(1) rotate(360deg);
-}
-}
-.bs-example{
-	margin: 20px;
-}
-select option[disabled] {
-	color: red;
-}
-.btn-file {
-    position: relative;
-    overflow: hidden;
-}
-.btn-file input[type=file] {
-    position: absolute;
-    top: 0;
-    right: 0;
-    min-width: 100%;
-    min-height: 100%;
-    font-size: 100px;
-    text-align: right;
-    filter: alpha(opacity=0);
-    opacity: 0;
-    outline: none;
-    background: white;
-    cursor: inherit;
-    display: block;
-}
-</style>
-<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-<script type="text/javascript" src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css">    
+      <link rel="stylesheet" href="/css/bootstrap-extra.css">
 <script type="text/javascript">
 // Plain JS to show header when no JQuery available
 window.onload = function() {
-	if (!window.jQuery){  
+	if (!window.jQuery){
 		document.getElementById("loading").style.display = "none";
 		document.getElementById("header").style.display = "block";
 	}
@@ -128,61 +40,69 @@ $( document ).ready(function() {
 	RefreshData();
 	$("#header").show();
 	$("#loading").hide();
-	$("#wifi_form").show();
 
 	// RefreshData function, the URL and Succes are different for every page
 	function RefreshData(){
 		$.ajax
 		({
 			type: "GET",
-			url: "/wifi_ajax",
+			url: "/filemanager_ajax",
 			data: "",
 			cache: false,
 			success: function(html)
 			{
 				var values = html.split("____");
-				$("#ssid").val(values[0]);
-				$("#password").val(values[1]);
+				$("#files").html(values[0]);
 
 				// Retrieve errors from ESP and show them on the page
-				if (values[2] == "1")  // error wifi
+				if (values[1] == "1")  // error wifi
 				{
 					$("#error1").html('<div class="bs-example" id="errorblock1" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Could not connect to preferred WiFi network. Please check your network and WiFi settings.</div></div>');
 					$("#errorblock1").show();
 					$.ajax({type: "GET",url: "/api",data: {action:"clearerror",value:"wifi"},cache: false})
 				}
-				if (values[3] == "1")  // error eeprom
+				if (values[2] == "1")  // error eeprom
 				{
 					$("#error2").html('<div class="bs-example" id="errorblock2" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Eeprom values are inconsistent. please re-save all your settings.</div></div>');
 					$("#errorblock2").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"eeprom"},url: "/api",cache: false})
 					}
-				if (values[4] == "1")  // error ds18b20
+				if (values[3] == "1")  // error ds18b20
 				{
 					$("#error3").html('<div class="bs-example" id="errorblock3" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Configured DS18B20 sensor is probably not connected.</div></div>');
 					$("#errorblock3").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"ds18b20"},url: "/api",cache: false})
 				}
-				if (values[5] == "1")  // Upgrade message
+				if (values[4] == "1")  // Upgrade message
 				{
 					$("#error4").html('<div class="bs-example" id="errorblock4" style="display: none;"><div class="alert alert-success fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Succes!</strong> Succesfully installed new ESPimatic version</div></div>');
 					$("#errorblock4").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"upgrade"},url: "/api",cache: false})
 				}
-			} 
+			}
 		});
 	};
 
+	
+$("#files_form").submit(function(event) {
+event.preventDefault();
+var sel = $( "#files" ).val();
+//alert(sel);
+	$('#file').val(sel);
+});
+	
+	
+	
 	// Function to submit (save) form data to ESP. Depending on the settings the ESP might reboot, then we have to trigger the CheckReboot function
-	$("#wifi_form").submit(function(event) {
+	$("#files_form").submit(function(event) {
 		event.preventDefault();
-		$("#wifi_form").hide();
+		$("#ds18b20_form").hide();
 		$("#header").hide();
 		$("#saving").show();
 		var values = $(this).serialize();
 		$.ajax
 		({
-			url: "/wifi_ajax",
+			url: "/ds18b20_ajax",
 			type: "post",
 			data: values,
 			success: function(html)
@@ -198,7 +118,7 @@ $( document ).ready(function() {
 	function DoReboot(){
 		$("#header").hide();
 		$("#reboot").show();
-		$("#wifi_form").hide();
+		$("#ds18b20_form").hide();
 		WaitForReboot = 1;
 		$.ajax
 		({type: "GET",url: "/api",data: {action:"reboot",value:"true"},cache: false})
@@ -208,10 +128,30 @@ $( document ).ready(function() {
 	function DoReset(){
 		$("#header").hide();
 		$("#reboot").show();
-		$("#wifi_form").hide();
+		$("#ds18b20_form").hide();
 		WaitForReboot = 1;
 		$.ajax
 		({type: "GET",url: "/api",data: {action:"reset",value:"true"},cache: false})
+	};
+	
+	// Function send File Delete command (delete from SPIFFS) to ESP. Triggered after pushing the red 'Delete' button from the modal popup
+	function DoDelete(){
+		var DeleteFile = $('#files').find(":selected").text();
+		$("#header").hide();
+		$("#loading").show();
+		$.ajax
+		({
+			url: "/delete",
+			type: "GET",
+			data: {path:DeleteFile},
+			success: function(html)
+			{
+				RefreshData();
+				$("#header").show();
+				$("#loading").hide();
+	
+			}
+		});
 	};
 
 	// When a link to the modal-dialog is pressed, configure text and buttons. This is for reset
@@ -223,13 +163,23 @@ $( document ).ready(function() {
 		$("#DoFunction").attr("title", "DoReset");
 	});
 
-	// When a link to the modal-dialog is pressed, configure text and buttons. This is for reset
+	// When a link to the modal-dialog is pressed, configure text and buttons. This is for reboot
 	$("#DoReboot").click(function(event){
 		event.preventDefault();
 		$(".modal-title1").html("Confirm Reboot");
 		$("#modal-body-text").html("Are you sure yout want to reboot?");
 		$("#DoFunction").html("Reboot");
 		$("#DoFunction").attr("title", "DoReboot");
+	});
+
+	// When a link to the modal-dialog is pressed, configure text and buttons. This is for delete
+	$("#DoDelete").click(function(event){
+		event.preventDefault();
+		var DeleteFile = $('#files').find(":selected").text();
+		$(".modal-title1").html("Confirm file delete");
+		$("#modal-body-text").html("Are you sure you want to delete '" + DeleteFile + "' ?<br>This will erase the file permanently. This option is irreversible.");
+		$("#DoFunction").html("Delete");
+		$("#DoFunction").attr("title", "DoDelete");
 	});
 	
 	// Function to figure out what exactly is confirmed in the modal-dialog, redirect to corresponding function
@@ -238,11 +188,32 @@ $( document ).ready(function() {
 		var linkTitle = $("#DoFunction").attr("title");
 		if (linkTitle == "DoReboot") { DoReboot(); }
 		if (linkTitle == "DoReset") { DoReset(); }
+		if (linkTitle == "DoDelete") { DoDelete(); }
 	});
 
 	// When the 'Refresh' button is pressed, refresh all data from ESP
 	$("#refresh").click(function(){RefreshData();});
 
+	$("#upload_file").submit(function(event) {
+		event.preventDefault();
+		$("#header").hide();
+		$("#loading").show();
+		$.ajax
+		({
+			url: '/fupload2',
+			type: 'POST',
+			data: new FormData( this ),
+			processData: false,
+			contentType: false,
+					success: function(html)
+					{
+						RefreshData();
+						$("#loading").hide();
+						$("#header").show();
+					}
+			});
+		});
+	
 	// Function to poll the ESP after a reboot command. Should Refresh data when back online again and disable polling
 	function CheckReboot(){
 		if (WaitForReboot == 1)
@@ -254,52 +225,17 @@ $( document ).ready(function() {
 				RefreshData();
 				$("#loading").hide();
 				$("#header").show();
-				$("#wifi_form").show();
+				$("#ds18b20_form").show();
 			}
 			});	
 		}
 	};
 });
+
     </script>    
    </head>
    <body>
-      <nav class="navbar navbar-default">
-         <div class="container-fluid">
-            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic</a></div>
-            <div>
-               <ul class="nav navbar-nav">
-                  <li class="dropdown">
-                     <a class="dropdown-toggle" data-toggle="dropdown" href="#"><span class="glyphicon glyphicon-cog"></span> Configure<span class="caret"></span></a>
-                     <ul class="dropdown-menu">
-                        <li class="dropdown-submenu">
-                           <a tabindex="-1" href="#">Hardware</a>
-                           <ul class="dropdown-menu">
-                              <li><a tabindex="-1" href="/ds18b20.html">DS18B20<span class="glyphicon glyphicon-fire pull-right"></span></a></li>
-                              <li><a href="/ledmatrix.html">LED Matrix<span class="glyphicon glyphicon-equalizer pull-right"></span></a></li>
-                              <li><a href="/irled.html">IR LED<span class="fa fa-rss pull-right"></span></a></li>
-                              <li><a href="/relay.html">Relay<span class="glyphicon glyphicon-flash pull-right"></span></a></li>
-                              <li><a href="/dht.html">DHT<span class="glyphicon glyphicon-tint pull-right"></span></a></li>
-                           </ul>
-                        </li>
-                        <li class="dropdown-submenu">
-                           <a tabindex="-1" href="#">System</a>
-                           <ul class="dropdown-menu">
-							<li><a href="/wifi.html">WiFi<span class="fa fa-wifi pull-right"></span></a></li>
-							<li><a href="/pimatic.html">Pimatic<span class="fa fa-home pull-right"></span></a></li>
-							<li><a href="/firmware.html">Firmware<span class="glyphicon glyphicon-upload pull-right"></span></a></li>
-							<li><a href="/gpio.html">GPIO<span class="fa fa-list-ol pull-right"></span></a></li>
-							<li><a href="/#" data-toggle="modal" data-target="#modal-dialog" id="DoReset">Reset<span class="glyphicon glyphicon-erase pull-right"></span></a></li>
-							<li><a href="/filemanager.html">Filemanager<span class="fa fa-files-o pull-right"></span></a></li>
-                           </ul>
-                        </li>
-                     </ul>
-					 <li class=""><a href="#" id="refresh"><span class="glyphicon glyphicon-repeat"></span> Refresh</a></li>
-					 <li class=""><a href="#" data-toggle="modal" data-target="#modal-dialog" id="DoReboot"><span class="glyphicon glyphicon-off"></span> Reboot</a></li>
-                  </li>
-               </ul>
-            </div>
-         </div>
-      </nav>
+	<script type="text/javascript" src="/js/menubar.js"></script>
 	<div id="modal-dialog" class="modal fade">
 		<div class="modal-dialog">
 			<div class="modal-content">
@@ -319,39 +255,56 @@ $( document ).ready(function() {
 		</div>
 	</div>	  
 	<p id="error1"></p><p id="error2"></p><p id="error3"></p><p id="error4"></p>
-      <div class='container'>
-      <div class='row'>
-      <div class='col-md-4'>
-        <div id='header' class='page-header' style='display: none;'>
-			<h1>Wifi Configuration</h1>
+      <div class="container">
+      <div id="loading" class="row"><div class="col-md-4"><div class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading . . .</div></div></div>
+        <div id="reboot" class="page-header" style="display: none;">
+			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting, please wait . . .
 		</div>
-        <div id='saving' class='page-header' style='display: none;'>
-			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Saving  . . .
+      <div id="header" class="row" style="display: none;">
+      <div class="col-md-4">
+         <div class="page-header">
+            <h1>Files</h1>
+         </div>
+            <form id="files_form" action="#" method="POST" style="display: snone;">
+         <div class="panel panel-default">
+                  <div class="panel-body">
+                     <input type="hidden" name="form" value="fdelete">
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Files: </span>
+                           <select class="form-control" name="files" id="files">
+                           </select>
+                        </div>
+                     </div>
+                  </div>
+                  <div class="panel-footer clearfix">
+                     <div class="pull-right"><button type="submit" class="btn btn-default" value="fdelete" data-toggle="modal" data-target="#modal-dialog" id="DoDelete"  >Delete</button></div>
+                  </div>
+				  </form>
+         </div>
+      </div>
+      <div class="col-md-4">
+         <div class="page-header">
+            <h1>Upload</h1>
+      </div>
+			<div id='loading' class='page-header' style='display: none;'><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading . . .
 		</div>
-        <div id='reboot' class='page-header' style='display: none;'>
-			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting . . .
-		</div>
-        <div id='loading' class='page-header'><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading . . .
-		</div>
-            <form id='wifi_form' action='wifi_ajax' method='POST' style='display: none'>
+            <form id='upload_file' action='/fupload2' method='POST' enctype='multipart/form-data'>
                <div class='panel panel-default'>
                   <div class='panel-body'>
                      <input type='hidden' name='form' value='wifi'>
                      <div class='form-group'>
-                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>SSID </span><input type='text' id='ssid' name='ssid' value='' class='form-control' aria-describedby='basic-addon1'></div>
-                     </div>
-                     <div class='form-group'>
-                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Password </span><input type='password' id='password' name='password' value='' class='form-control' aria-describedby='basic-addon2'></div>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Select file </span><span class="btn btn-default btn-file">browse<input type="file" name="fupload" multiple></span></div>
                      </div>
 				</div>
                   <div class='panel-footer clearfix'>
-                     <div class='pull-right'><button type='submit' class='btn btn-default'>Send</button></div>
+                     <div class='pull-right'><button type='submit' class='btn btn-default' value='Update'>Upload</button></div>
                   </div>
                </div>
             </form>
             <div class='clearfix visible-lg'></div>
-			</div>
-      </div>
-      </div>
+	</div>
+	  </div>
+	  </div>
    </body>
 </html>

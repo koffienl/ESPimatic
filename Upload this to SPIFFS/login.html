@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <script src="/js/insert.js"></script>
+      <title>ESPimatic</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="/css/bootstrap-extra.css">
+<script type="text/javascript">
+// Plain JS to show header when no JQuery available
+window.onload = function() {
+	if (!window.jQuery){  
+		document.getElementById("loading").style.display = "none";
+		document.getElementById("header").style.display = "block";
+	}
+
+	// If browser is not Android, convert clickable submenu into hover submenu
+	var ua = navigator.userAgent.toLowerCase();
+	var isAndroid = ua.indexOf("android") > -1;
+	if(!isAndroid){
+		var sheet = document.createElement("style")		
+		sheet.innerHTML = ".dropdown-submenu:hover>.dropdown-menu { display: block; }";
+		document.body.appendChild(sheet);
+	}
+}
+
+// Jquery functions
+$( document ).ready(function() {
+
+	// Make submenu clickable
+	$(".dropdown-submenu>a").unbind("click").click(function(e){
+		$(this).next("ul").toggle();
+		e.stopPropagation();
+		e.preventDefault();
+	});
+
+
+
+	// Function to submit (save) form data to ESP. Depending on the settings the ESP might reboot, then we have to trigger the CheckReboot function
+	$("#wifis_form").submit(function(event) {
+		event.preventDefault();
+		$("#login_form").hide();
+		$("#header").hide();
+		$("#saving").show();
+		var values = $(this).serialize();
+		$.ajax
+		({
+			url: "/wifi_ajax",
+			type: "post",
+			data: values,
+			success: function(html)
+			{
+				$("#saving").hide();
+				$("#reboot").show();
+				WaitForReboot = 1;
+			}
+		});
+	});
+});
+    </script>    
+   </head>
+   <body>
+      <nav class="navbar navbar-default">
+         <div class="container-fluid">
+            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic</a></div>
+         </div>
+      </nav>
+	<div id="modal-dialog" class="modal fade">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+					<h4 class="modal-title1">title</h4>
+				</div>
+				<div class="modal-body">
+					<p id="modal-body-text">question</p>
+					<p class="debug-url"></p>
+				</div>
+				<div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <a class="btn btn-danger btn-ok" id="DoFunction">yes</a>
+                </div>
+			</div>
+		</div>
+	</div>	  
+      <div class='container'>
+      <div class='row'>
+      <div class='col-md-4'>
+        <div id='header' class='page-header' style='display: snone;'>
+			<h1>Login</h1>
+		</div>
+            <form id='login_form' action='/login_ajax' method='POST' style='display: snone'>
+               <div class='panel panel-default'>
+                  <div class='panel-body'>
+                     <input type='hidden' name='form' value='login'>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Username </span><input type='text' id='user' name='user' value='' class='form-control' aria-describedby='basic-addon1'></div>
+                     </div>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Password </span><input type='password' id='password' name='password' value='' class='form-control' aria-describedby='basic-addon2'></div>
+                     </div>
+				</div>
+                  <div class='panel-footer clearfix'>
+                     <div class='pull-right'><button type='submit' class='btn btn-default'>Send</button></div>
+                  </div>
+               </div>
+            </form>
+            <div class='clearfix visible-lg'></div>
+			</div>
+      </div>
+      </div>
+   </body>
+</html>

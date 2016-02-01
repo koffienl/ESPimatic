@@ -1,99 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
    <head>
-    <title>ESPimatic</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
-	<style type="text/css">
-.dropdown-submenu {
-  position: relative;
-}
-.dropdown-submenu>.dropdown-menu {
-  top: 0;
- left: 100%;
- margin-top: -6px;
-  margin-left: -1px;
-  -webkit-border-radius: 0 6px 6px 6px;
- -moz-border-radius: 0 6px 6px;
-  border-radius: 0 6px 6px 6px;
-}
-.dropdown-submenu>a:after {
- display: block;
- content: " ";
- float: right;
- width: 0;
- height: 0;
-  border-color: transparent;
-  border-style: solid;
-  border-width: 5px 0 5px 5px;
-  border-left-color: #ccc;
- margin-top: 5px;
-  margin-right: -10px;
-}
-.dropdown-submenu:hover>a:after {
-  border-left-color: #fff;
-}
-.dropdown-submenu.pull-left {
-  float: none;
-}
-.dropdown-submenu.pull-left>.dropdown-menu {
- left: -100%;
-  margin-left: 10px;
-  -webkit-border-radius: 6px 0 6px 6px;
- -moz-border-radius: 6px 0 6px 6px;
-  border-radius: 6px 0 6px 6px;
-}
-.glyphicon-refresh-animate {
- -animation: spin .7s infinite linear;
- -webkit-animation: spin2 .7s infinite linear;
-}
-@-webkit-keyframes spin2 {
-from {
--webkit-transform: rotate(0deg);
-}
-to {
--webkit-transform: rotate(360deg);
-}
-}
-@keyframes spin {
-from {
-transform: scale(1) rotate(0deg);
-}
-to {
-transform: scale(1) rotate(360deg);
-}
-}
-.bs-example{
-	margin: 20px;
-}
-select option[disabled] {
-	color: red;
-}
-.btn-file {
-    position: relative;
-    overflow: hidden;
-}
-.btn-file input[type=file] {
-    position: absolute;
-    top: 0;
-    right: 0;
-    min-width: 100%;
-    min-height: 100%;
-    font-size: 100px;
-    text-align: right;
-    filter: alpha(opacity=0);
-    opacity: 0;
-    outline: none;
-    background: white;
-    cursor: inherit;
-    display: block;
-}
-</style>
-<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-<script type="text/javascript" src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css">    
+      <script src="/js/insert.js"></script>
+      <title>ESPimatic</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="/css/bootstrap-extra.css">
 <script type="text/javascript">
 // Plain JS to show header when no JQuery available
 window.onload = function() {
@@ -127,7 +39,7 @@ $( document ).ready(function() {
 	// When finished, show full page
 	RefreshData();
 	$("#loading").hide();
-	$("#header").show();			
+	$("#header").show();
 
 	// RefreshData function, the URL and Succes are different for every page
 	function RefreshData(){
@@ -145,6 +57,7 @@ $( document ).ready(function() {
 				$("#matrix").html(values[2]);
 				$("#irled").html(values[3]);
 				$("#relay").html(values[4]);
+				$("#devicename").html(values[19]);
 			
 				// Hide relay status if relay option is disabled
 				if ( values[4].indexOf('glyphicon-ban-circle') !== -1 )
@@ -165,6 +78,10 @@ $( document ).ready(function() {
 				var InUse = Math.round(( values[17] / (values[16] / 100) ));
 				$("#flash").html(InUse + "%");
 				$("#memory").html(values[18] + " bytes");
+				if (values[20] == "1")
+				{
+					$("#logoff").show();			
+				}
 				
 				// Retrieve errors from ESP and show them on the page
 				if (values[10] == "1")  // error wifi
@@ -245,7 +162,8 @@ $( document ).ready(function() {
 	// Function to poll the ESP after a reboot command. Should Refresh data when back online again and disable polling
 	function CheckReboot(){
 		if (WaitForReboot == 1)
-		{$.ajax({url: "/ping",type: "GET",data: "",success: function(html)
+		{
+		$.ajax({url: "/ping",type: "GET",data: "",success: function(html)
 			{
 				WaitForReboot = 0;
 				$("#loading").show();
@@ -256,48 +174,16 @@ $( document ).ready(function() {
 			}
 			});	
 		}
+		else
+		{
+			RefreshData();		// If no reboot, refresh data every 2 seconds. Only for root.html
+		}
 	};
 });
     </script>    
    </head>
    <body>
-      <nav class="navbar navbar-default">
-         <div class="container-fluid">
-            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic</a></div>
-            <div>
-               <ul class="nav navbar-nav">
-                  <li class="dropdown">
-                     <a class="dropdown-toggle" data-toggle="dropdown" href="#"><span class="glyphicon glyphicon-cog"></span> Configure<span class="caret"></span></a>
-                     <ul class="dropdown-menu">
-                        <li class="dropdown-submenu">
-                           <a tabindex="-1" href="#">Hardware</a>
-                           <ul class="dropdown-menu">
-                              <li><a tabindex="-1" href="/ds18b20.html">DS18B20<span class="glyphicon glyphicon-fire pull-right"></span></a></li>
-                              <li><a href="/ledmatrix.html">LED Matrix<span class="glyphicon glyphicon-equalizer pull-right"></span></a></li>
-                              <li><a href="/irled.html">IR LED<span class="fa fa-rss pull-right"></span></a></li>
-                              <li><a href="/relay.html">Relay<span class="glyphicon glyphicon-flash pull-right"></span></a></li>
-                              <li><a href="/dht.html">DHT<span class="glyphicon glyphicon-tint pull-right"></span></a></li>
-                           </ul>
-                        </li>
-                        <li class="dropdown-submenu">
-                           <a tabindex="-1" href="#">System</a>
-                           <ul class="dropdown-menu">
-							<li><a href="/wifi.html">WiFi<span class="fa fa-wifi pull-right"></span></a></li>
-							<li><a href="/pimatic.html">Pimatic<span class="fa fa-home pull-right"></span></a></li>
-							<li><a href="/firmware.html">Firmware<span class="glyphicon glyphicon-upload pull-right"></span></a></li>
-							<li><a href="/gpio.html">GPIO<span class="fa fa-list-ol pull-right"></span></a></li>
-							<li><a href="/#" data-toggle="modal" data-target="#modal-dialog" id="DoReset">Reset<span class="glyphicon glyphicon-erase pull-right"></span></a></li>
-							<li><a href="/filemanager.html">Filemanager<span class="fa fa-files-o pull-right"></span></a></li>
-                           </ul>
-                        </li>
-                     </ul>
-					 <li class=""><a href="#" id="refresh"><span class="glyphicon glyphicon-repeat"></span> Refresh</a></li>
-					 <li class=""><a href="#" data-toggle="modal" data-target="#modal-dialog" id="DoReboot"><span class="glyphicon glyphicon-off"></span> Reboot</a></li>
-                  </li>
-               </ul>
-            </div>
-         </div>
-      </nav>
+	<script type="text/javascript" src="/js/menubar.js"></script>
 	<div id="modal-dialog" class="modal fade">
 		<div class="modal-dialog">
 			<div class="modal-content">
@@ -318,9 +204,9 @@ $( document ).ready(function() {
 	</div>	  
 	<p id="error1"></p><p id="error2"></p><p id="error3"></p><p id="error4"></p>
       <div class="container">
-      <div id="loading" class="row"><div class="col-md-4"><div class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading . . .</div></div></div>
+      <div id="loading" class="row"><div class="col-md-4"><div class="page-header"><span class="fa fa-refresh fa-spin"></span></span> Loading . . .</div></div></div>
         <div id="reboot" class="page-header" style="display: none;">
-			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting, please wait . . .
+			<span class="fa fa-refresh fa-spin"></span> Rebooting, please wait . . .
 		</div>
       <div id="header" class="row" style="display: none;">
       <div class="col-md-4">
@@ -342,16 +228,19 @@ $( document ).ready(function() {
             <h1>System information</h1>
          </div>
          <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-tag"></span> Device name<span class="pull-right"><span id="devicename"></span></span></div>
+         </div>
+         <div class="panel panel-default">
             <div class="panel-body"><span class="glyphicon glyphicon-time"></span> Uptime<span class="pull-right"><span id="uptime"></span></span></div>
          </div>
          <div class="panel panel-default">
-            <div class="panel-body"><span class="fa fa-info-circle"></span> Version<span class="pull-right"><span id="version"></span></span></div>
+            <div class="panel-body"><span class="glyphicon glyphicon-info-sign"></span> Version<span class="pull-right"><span id="version"></span></span></div>
          </div>
          <div class="panel panel-default">
             <div class="panel-body"><span class="glyphicon glyphicon-hdd"></span> Flash space in use<span class="pull-right"><span id="flash"></span></span></div>
          </div>
          <div class="panel panel-default">
-            <div class="panel-body"><span class="fa fa-area-chart"></span> Free memory<span class="pull-right"><span id="memory"></span></span></div>
+            <div class="panel-body"><span class="glyphicon glyphicon-stats"></span> Free memory<span class="pull-right"><span id="memory"></span></span></div>
          </div>
 	</div>
       <div class="col-md-4">
@@ -362,7 +251,7 @@ $( document ).ready(function() {
          <div class="panel-body"><span class="glyphicon glyphicon-equalizer"></span> LED Matrix<span class="pull-right"><span id="matrix"></span></span></div>
       </div>
       <div class="panel panel-default">
-         <div class="panel-body"><span class="fa fa-rss"></span> IR LED<span class="pull-right"><span id="irled"></span></span></div>
+         <div class="panel-body"><span class="glyphicon glyphicon-eye-open"></span> IR LED<span class="pull-right"><span id="irled"></span></span></div>
       </div>
       <div class="panel panel-default">
          <div class="panel-body">

@@ -1,101 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <title>ESPimatic</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
-    <style type="text/css">
-      .dropdown-submenu {
-      position: relative;
-      }
-      .dropdown-submenu>.dropdown-menu {
-      top: 0;
-      left: 100%;
-      margin-top: -6px;
-      margin-left: -1px;
-      -webkit-border-radius: 0 6px 6px 6px;
-      -moz-border-radius: 0 6px 6px;
-      border-radius: 0 6px 6px 6px;
-      }
-      .dropdown-submenu>a:after {
-      display: block;
-      content: " ";
-      float: right;
-      width: 0;
-      height: 0;
-      border-color: transparent;
-      border-style: solid;
-      border-width: 5px 0 5px 5px;
-      border-left-color: #ccc;
-      margin-top: 5px;
-      margin-right: -10px;
-      }
-      .dropdown-submenu:hover>a:after {
-      border-left-color: #fff;
-      }
-      .dropdown-submenu.pull-left {
-      float: none;
-      }
-      .dropdown-submenu.pull-left>.dropdown-menu {
-      left: -100%;
-      margin-left: 10px;
-      -webkit-border-radius: 6px 0 6px 6px;
-      -moz-border-radius: 6px 0 6px 6px;
-      border-radius: 6px 0 6px 6px;
-      }
-      .glyphicon-refresh-animate {
-      -animation: spin .7s infinite linear;
-      -webkit-animation: spin2 .7s infinite linear;
-      }
-      @-webkit-keyframes spin2 {
-      from {
-      -webkit-transform: rotate(0deg);
-      }
-      to {
-      -webkit-transform: rotate(360deg);
-      }
-      }
-      @keyframes spin {
-      from {
-      transform: scale(1) rotate(0deg);
-      }
-      to {
-      transform: scale(1) rotate(360deg);
-      }
-      }
-      .bs-example{
-      margin: 20px;
-      }
-      select option[disabled] {
-      color: red;
-      }
-      .btn-file {
-      position: relative;
-      overflow: hidden;
-      }
-      .btn-file input[type=file] {
-      position: absolute;
-      top: 0;
-      right: 0;
-      min-width: 100%;
-      min-height: 100%;
-      font-size: 100px;
-      text-align: right;
-      filter: alpha(opacity=0);
-      opacity: 0;
-      outline: none;
-      background: white;
-      cursor: inherit;
-      display: block;
-      }
-    </style>
-<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-<script type="text/javascript" src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css">    
+   <head>
+      <script src="/js/insert.js"></script>
+      <title>ESPimatic</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="/css/bootstrap-extra.css">
 <script type="text/javascript">
-// Plain JS to show header when no JQuery available
 window.onload = function() {
 	if (!window.jQuery){  
 		document.getElementById("loading").style.display = "none";
@@ -123,62 +34,58 @@ $( document ).ready(function() {
 		e.stopPropagation();
 		e.preventDefault();
 	});
-
 	// Allways start with 'RefreshData' to collect data with JQuery
 	// When finished, show full page
 	RefreshData();
+	$("#header").show();
 	$("#loading").hide();
-	$("#header").show();			
-	$("#matrix_form").show();
+	$("#dht_form").show();
 
 	// RefreshData function, the URL and Succes are different for every page
 	function RefreshData(){
 		$.ajax
 		({
 			type: "GET",
-			url: "/ledmatrix_ajax",
+			url: "/dht_ajax",
 			data: "",
 			cache: false,
 			success: function(html)
 			{
 				var values = html.split("____");
-				$("#matrix_pin").html(values[1]);
-				$("#matrix_show").html(values[2]);
-				$("#matrix_intensity").html(values[7]);
-				$("#matrix_show option[value='0']").text("Nothing");
-				$("#matrix_show option[value='1']").text("DS18B20");
-				$("#matrix_show option[value='2']").text("DHT Temperature");
-				$("#matrix_show option[value='3']").text("DHT Humidity");
-				
+				$("#dht_pin").html(values[1]);
+				$("#dht_interval").html(values[2]);
+				$("#dht_type").html(values[3]);
+				$("#dhttemp_var").val(values[4]);
+				$("#dhthum_var").val(values[5]);
 				if (values[0] == "1")
 				{
-					$("input[name=matrix_bool]").prop("checked", true);
+					$("input[name=dht_bool]").prop("checked", true);
 				}
 				if (values[0] == "0" || values[0] == "")
 				{
-					$("input[name=matrix_bool]").prop("checked", false);
+					$("input[name=dht_bool]").prop("checked", false);
 				}
 				
 				// Retrieve errors from ESP and show them on the page
-				if (values[3] == "1")  // error wifi
+				if (values[6] == "1")  // error wifi
 				{
 					$("#error1").html('<div class="bs-example" id="errorblock1" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Could not connect to preferred WiFi network. Please check your network and WiFi settings.</div></div>');
 					$("#errorblock1").show();
 					$.ajax({type: "GET",url: "/api",data: {action:"clearerror",value:"wifi"},cache: false})
 				}
-				if (values[4] == "1")  // error eeprom
+				if (values[7] == "1")  // error eeprom
 				{
 					$("#error2").html('<div class="bs-example" id="errorblock2" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Eeprom values are inconsistent. please re-save all your settings.</div></div>');
 					$("#errorblock2").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"eeprom"},url: "/api",cache: false})
 					}
-				if (values[5] == "1")  // error ds18b20
+				if (values[8] == "1")  // error ds18b20
 				{
 					$("#error3").html('<div class="bs-example" id="errorblock3" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Configured DS18B20 sensor is probably not connected.</div></div>');
 					$("#errorblock3").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"ds18b20"},url: "/api",cache: false})
 				}
-				if (values[6] == "1")  // Upgrade message
+				if (values[9] == "1")  // Upgrade message
 				{
 					$("#error4").html('<div class="bs-example" id="errorblock4" style="display: none;"><div class="alert alert-success fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Succes!</strong> Succesfully installed new ESPimatic version</div></div>');
 					$("#errorblock4").show();
@@ -187,17 +94,17 @@ $( document ).ready(function() {
 			}
 		});
 		};
-
+	
 	// Function to submit (save) form data to ESP. Depending on the settings the ESP might reboot, then we have to trigger the CheckReboot function
-	$("#matrix_form").submit(function(event) {
+	$("#dht_form").submit(function(event) {
 		event.preventDefault();
-		$("#matrix_form").hide();
+		$("#dht_form").hide();
 		$("#header").hide();
 		$("#saving").show();
 		var values = $(this).serialize();
 		$.ajax
 		({
-			url: "/ledmatrix_ajax",
+			url: "/dht_ajax",
 			type: "post",
 			data: values,
 			success: function(html)
@@ -207,12 +114,12 @@ $( document ).ready(function() {
 				WaitForReboot = 1;
 			}
 		});
-	});			
+	});
 	
 	// Function to send Reboot command to ESP and wait to come back online. Triggered after pushing the red 'Reboot' button from the modal popup
 	function DoReboot(){
 		$("#header").hide();
-		$("#matrix_form").hide();
+		$("#dht_form").hide();
 		$("#reboot").show();
 		WaitForReboot = 1;
 		$.ajax
@@ -237,7 +144,7 @@ $( document ).ready(function() {
 		$("#DoFunction").attr("title", "DoReset");
 	});
 
-	// When a link to the modal-dialog is pressed, configure text and buttons. This is for reset
+	// When a link to the modal-dialog is pressed, configure text and buttons. This is for reboot
 	$("#DoReboot").click(function(event){
 		event.preventDefault();
 		$(".modal-title1").html("Confirm Reboot");
@@ -268,7 +175,7 @@ $( document ).ready(function() {
 				RefreshData();
 				$("#loading").hide();
 				$("#header").show();
-				$("#matrix_form").show();
+				$("#dht_form").show();
 			}
 			});	
 		}
@@ -277,43 +184,7 @@ $( document ).ready(function() {
     </script>    
    </head>
    <body>
-      <nav class="navbar navbar-default">
-         <div class="container-fluid">
-            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic</a></div>
-            <div>
-               <ul class="nav navbar-nav">
-                  <li class="dropdown">
-                     <a class="dropdown-toggle" data-toggle="dropdown" href="#"><span class="glyphicon glyphicon-cog"></span> Configure<span class="caret"></span></a>
-                     <ul class="dropdown-menu">
-                        <li class="dropdown-submenu">
-                           <a tabindex="-1" href="#">Hardware</a>
-                           <ul class="dropdown-menu">
-                              <li><a tabindex="-1" href="/ds18b20.html">DS18B20<span class="glyphicon glyphicon-fire pull-right"></span></a></li>
-                              <li><a href="/ledmatrix.html">LED Matrix<span class="glyphicon glyphicon-equalizer pull-right"></span></a></li>
-                              <li><a href="/irled.html">IR LED<span class="fa fa-rss pull-right"></span></a></li>
-                              <li><a href="/relay.html">Relay<span class="glyphicon glyphicon-flash pull-right"></span></a></li>
-                              <li><a href="/dht.html">DHT<span class="glyphicon glyphicon-tint pull-right"></span></a></li>
-                           </ul>
-                        </li>
-                        <li class="dropdown-submenu">
-                           <a tabindex="-1" href="#">System</a>
-                           <ul class="dropdown-menu">
-							<li><a href="/wifi.html">WiFi<span class="fa fa-wifi pull-right"></span></a></li>
-							<li><a href="/pimatic.html">Pimatic<span class="fa fa-home pull-right"></span></a></li>
-							<li><a href="/firmware.html">Firmware<span class="glyphicon glyphicon-upload pull-right"></span></a></li>
-							<li><a href="/gpio.html">GPIO<span class="fa fa-list-ol pull-right"></span></a></li>
-							<li><a href="/#" data-toggle="modal" data-target="#modal-dialog" id="DoReset">Reset<span class="glyphicon glyphicon-erase pull-right"></span></a></li>
-							<li><a href="/filemanager.html">Filemanager<span class="fa fa-files-o pull-right"></span></a></li>
-                           </ul>
-                        </li>
-                     </ul>
-					 <li class=""><a href="#" id="refresh"><span class="glyphicon glyphicon-repeat"></span> Refresh</a></li>
-					 <li class=""><a href="#" data-toggle="modal" data-target="#modal-dialog" id="DoReboot"><span class="glyphicon glyphicon-off"></span> Reboot</a></li>
-                  </li>
-               </ul>
-            </div>
-         </div>
-      </nav>
+	<script type="text/javascript" src="/js/menubar.js"></script>
 	<div id="modal-dialog" class="modal fade">
 		<div class="modal-dialog">
 			<div class="modal-content">
@@ -337,45 +208,51 @@ $( document ).ready(function() {
       <div class="row">
       <div class="col-md-4">
         <div id="header" class="page-header" style="display: none;">
-			<h1>LED Matrix Configuration</h1>
+			<h1>DHT Configuration</h1>
 		</div>
         <div id="saving" class="page-header" style="display: none;">
 			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Saving  . . .
 		</div>
         <div id="reboot" class="page-header" style="display: none;">
-			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting . . .
+			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting, please wait . . .
 		</div>
         <div id="loading" class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading . . .
 		</div>
-            <form id="matrix_form" action="#" method="POST" style="display: none;">
+            <form id="dht_form" action="#" method="POST" style="display: none;">
                <div class="panel panel-default">
                   <div class="panel-body">
-                     <input type="hidden" name="form" value="matrix">
+                     <input type="hidden" name="form" value="dht">
                      <div class="form-group">
-                        <div class="input-group"><span class="input-group-addon">Enable </span><span class="form-control"><input type="checkbox" name="matrix_bool"> </span></div>
+                        <div class="input-group"><span class="input-group-addon">Enable </span><span class="form-control"><input type="checkbox" name="dht_bool"> </span></div>
                      </div>
                      <div class="form-group">
                         <div class="input-group">
                            <span class="input-group-addon">Pin </span>
-                           <select class="form-control" name="matrix_pin" id="matrix_pin">
+                           <select class="form-control" name="dht_pin" id="dht_pin">
                            </select>
                         </div>
                      </div>
                      <div class="form-group">
                         <div class="input-group">
-                           <span class="input-group-addon">Show on matrix </span>
-                           <select class="form-control" name="matrix_show" id="matrix_show">
+                           <span class="input-group-addon">Interval (minutes) </span>
+                           <select class="form-control" name="dht_interval" id="dht_interval">
                            </select>
                         </div>
                      </div>
                      <div class="form-group">
                         <div class="input-group">
-                           <span class="input-group-addon">Default Intensity </span>
-                           <select class="form-control" name="matrix_intensity" id="matrix_intensity">
+                           <span class="input-group-addon">Type </span>
+                           <select class="form-control" name="dht_type" id="dht_type">
                            </select>
                         </div>
                      </div>
-					</div>
+                     <div class="form-group">
+                        <div class="input-group"><span class="input-group-addon" id="basic-addon1">Variable name temperature </span><input type="text" id="dhttemp_var" name="dhttemp_var" value="" class="form-control" aria-describedby="basic-addon1"></div>
+                     </div>
+                     <div class="form-group">
+                        <div class="input-group"><span class="input-group-addon" id="basic-addon1">Variable name humidity</span><input type="text" id="dhthum_var" name="dhthum_var" value="" class="form-control" aria-describedby="basic-addon1"></div>
+                     </div>
+                  </div>
                   <div class="panel-footer clearfix">
                      <div class="pull-right"><button type="submit" class="btn btn-default">Send</button></div>
                   </div>
@@ -384,6 +261,6 @@ $( document ).ready(function() {
             <div class="clearfix visible-lg"></div>
 			</div>
 			</div>
-      </div>
+			</div>
    </body>
 </html>

@@ -1,99 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
    <head>
+      <script src="/js/insert.js"></script>
       <title>ESPimatic</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
-	  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
-    <style type="text/css">
-.dropdown-submenu {
-  position: relative;
-}
-.dropdown-submenu>.dropdown-menu {
-  top: 0;
- left: 100%;
- margin-top: -6px;
-  margin-left: -1px;
-  -webkit-border-radius: 0 6px 6px 6px;
- -moz-border-radius: 0 6px 6px;
-  border-radius: 0 6px 6px 6px;
-}
-.dropdown-submenu>a:after {
- display: block;
- content: " ";
- float: right;
- width: 0;
- height: 0;
-  border-color: transparent;
-  border-style: solid;
-  border-width: 5px 0 5px 5px;
-  border-left-color: #ccc;
- margin-top: 5px;
-  margin-right: -10px;
-}
-.dropdown-submenu:hover>a:after {
-  border-left-color: #fff;
-}
-.dropdown-submenu.pull-left {
-  float: none;
-}
-.dropdown-submenu.pull-left>.dropdown-menu {
- left: -100%;
-  margin-left: 10px;
-  -webkit-border-radius: 6px 0 6px 6px;
- -moz-border-radius: 6px 0 6px 6px;
-  border-radius: 6px 0 6px 6px;
-}
-.glyphicon-refresh-animate {
- -animation: spin .7s infinite linear;
- -webkit-animation: spin2 .7s infinite linear;
-}
-@-webkit-keyframes spin2 {
-from {
--webkit-transform: rotate(0deg);
-}
-to {
--webkit-transform: rotate(360deg);
-}
-}
-@keyframes spin {
-from {
-transform: scale(1) rotate(0deg);
-}
-to {
-transform: scale(1) rotate(360deg);
-}
-}
-.bs-example{
-	margin: 20px;
-}
-select option[disabled] {
-	color: red;
-}
-.btn-file {
-    position: relative;
-    overflow: hidden;
-}
-.btn-file input[type=file] {
-    position: absolute;
-    top: 0;
-    right: 0;
-    min-width: 100%;
-    min-height: 100%;
-    font-size: 100px;
-    text-align: right;
-    filter: alpha(opacity=0);
-    opacity: 0;
-    outline: none;
-    background: white;
-    cursor: inherit;
-    display: block;
-}
-</style>
-<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-<script type="text/javascript" src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css">    
+      <link rel="stylesheet" href="/css/bootstrap-extra.css">
 <script type="text/javascript">
 // Plain JS to show header when no JQuery available
 window.onload = function() {
@@ -102,6 +14,7 @@ window.onload = function() {
 		document.getElementById("header").style.display = "block";
 	}
 
+	
 	// If browser is not Android, convert clickable submenu into hover submenu
 	var ua = navigator.userAgent.toLowerCase();
 	var isAndroid = ua.indexOf("android") > -1;
@@ -128,14 +41,14 @@ $( document ).ready(function() {
 	RefreshData();
 	$("#header").show();
 	$("#loading").hide();
-	$("#gpio_form").show();
+	$("#esp_form").show();
 
 	// RefreshData function, the URL and Succes are different for every page
 	function RefreshData(){
 		$.ajax
 		({
 			type: "GET",
-			url: "/gpio_ajax",
+			url: "/esp_ajax",
 			data: "",
 			cache: false,
 			success: function(html)
@@ -176,52 +89,66 @@ $( document ).ready(function() {
 				if (values[16] == "1") { $("input[name=gpio16_bool]").prop("checked", true); }
 				if (values[16] == "0") { $("input[name=gpio16_bool]").prop("checked", false); }
 				
+				$("#devicename").val(values[17]);
+				
+				if (values[18] == "1") { $("input[name=security_bool]").prop("checked", true); }
+				if (values[18] == "0") { $("input[name=security_bool]").prop("checked", false); }
+				
+				$("#username").val(values[19]);
+				$("#password").val(values[20]);
+				$("#apikey").val(values[25]);
+				
+				if (values[26] == "1") { $("input[name=bslocal_bool]").prop("checked", true); }
+				if (values[26] == "0") { $("input[name=bslocal_bool]").prop("checked", false); }
+
+
 				// Retrieve errors from ESP and show them on the page
-				if (values[17] == "1")  // error wifi
+				if (values[21] == "1")  // error wifi
 				{
 					$("#error1").html('<div class="bs-example" id="errorblock1" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Could not connect to preferred WiFi network. Please check your network and WiFi settings.</div></div>');
 					$("#errorblock1").show();
+					//alert("wifi error? ");
 					$.ajax({type: "GET",url: "/api",data: {action:"clearerror",value:"wifi"},cache: false})
 				}
-				if (values[18] == "1")  // error eeprom
+				if (values[22] == "1")  // error eeprom
 				{
 					$("#error2").html('<div class="bs-example" id="errorblock2" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Eeprom values are inconsistent. please re-save all your settings.</div></div>');
 					$("#errorblock2").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"eeprom"},url: "/api",cache: false})
 					}
-				if (values[19] == "1")  // error ds18b20
+				if (values[23] == "1")  // error ds18b20
 				{
 					$("#error3").html('<div class="bs-example" id="errorblock3" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Configured DS18B20 sensor is probably not connected.</div></div>');
 					$("#errorblock3").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"ds18b20"},url: "/api",cache: false})
 				}
-				if (values[20] == "1")  // Upgrade message
+				if (values[24] == "1")  // Upgrade message
 				{
 					$("#error4").html('<div class="bs-example" id="errorblock4" style="display: none;"><div class="alert alert-success fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Succes!</strong> Succesfully installed new ESPimatic version</div></div>');
 					$("#errorblock4").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"upgrade"},url: "/api",cache: false})
 				}
-			}
+			} 
 		});
-	};	
+	};
 
 	// Function to submit (save) form data to ESP. Depending on the settings the ESP might reboot, then we have to trigger the CheckReboot function
-	$("#gpio_form").submit(function(event) {
+	$("form").submit(function(event) {
 		event.preventDefault();
-		$("#gpio_form").hide();
+		//$("#esp_form").hide();
 		$("#header").hide();
 		$("#saving").show();
 		var values = $(this).serialize();
 		$.ajax
 		({
-			url: "/gpio_ajax",
+			url: "/esp_ajax",
 			type: "post",
 			data: values,
 			success: function(html)
 			{
 				$("#saving").hide();
-				$("#gpio_form").show();
-				$("#header").show();
+				$("#reboot").show();
+				WaitForReboot = 1;
 			}
 		});
 	});
@@ -230,7 +157,7 @@ $( document ).ready(function() {
 	function DoReboot(){
 		$("#header").hide();
 		$("#reboot").show();
-		$("#gpio_form").hide();
+		$("#esp_form").hide();
 		WaitForReboot = 1;
 		$.ajax
 		({type: "GET",url: "/api",data: {action:"reboot",value:"true"},cache: false})
@@ -240,7 +167,7 @@ $( document ).ready(function() {
 	function DoReset(){
 		$("#header").hide();
 		$("#reboot").show();
-		$("#gpio_form").hide();
+		$("#esp_form").hide();
 		WaitForReboot = 1;
 		$.ajax
 		({type: "GET",url: "/api",data: {action:"reset",value:"true"},cache: false})
@@ -286,53 +213,16 @@ $( document ).ready(function() {
 				RefreshData();
 				$("#loading").hide();
 				$("#header").show();
-				$("#gpio_form").show();
+				$("#esp_form").show();
 			}
 			});	
 		}
 	};
 });
-
     </script>    
    </head>
    <body>
-      <nav class="navbar navbar-default">
-         <div class="container-fluid">
-            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic</a></div>
-            <div>
-               <ul class="nav navbar-nav">
-                  <li class="dropdown">
-                     <a class="dropdown-toggle" data-toggle="dropdown" href="#"><span class="glyphicon glyphicon-cog"></span> Configure<span class="caret"></span></a>
-                     <ul class="dropdown-menu">
-                        <li class="dropdown-submenu">
-                           <a tabindex="-1" href="#">Hardware</a>
-                           <ul class="dropdown-menu">
-                              <li><a tabindex="-1" href="/ds18b20.html">DS18B20<span class="glyphicon glyphicon-fire pull-right"></span></a></li>
-                              <li><a href="/ledmatrix.html">LED Matrix<span class="glyphicon glyphicon-equalizer pull-right"></span></a></li>
-                              <li><a href="/irled.html">IR LED<span class="fa fa-rss pull-right"></span></a></li>
-                              <li><a href="/relay.html">Relay<span class="glyphicon glyphicon-flash pull-right"></span></a></li>
-                              <li><a href="/dht.html">DHT<span class="glyphicon glyphicon-tint pull-right"></span></a></li>
-                           </ul>
-                        </li>
-                        <li class="dropdown-submenu">
-                           <a tabindex="-1" href="#">System</a>
-                           <ul class="dropdown-menu">
-							<li><a href="/wifi.html">WiFi<span class="fa fa-wifi pull-right"></span></a></li>
-							<li><a href="/pimatic.html">Pimatic<span class="fa fa-home pull-right"></span></a></li>
-							<li><a href="/firmware.html">Firmware<span class="glyphicon glyphicon-upload pull-right"></span></a></li>
-							<li><a href="/gpio.html">GPIO<span class="fa fa-list-ol pull-right"></span></a></li>
-							<li><a href="/#" data-toggle="modal" data-target="#modal-dialog" id="DoReset">Reset<span class="glyphicon glyphicon-erase pull-right"></span></a></li>
-							<li><a href="/filemanager.html">Filemanager<span class="fa fa-files-o pull-right"></span></a></li>
-                           </ul>
-                        </li>
-                     </ul>
-					 <li class=""><a href="#" id="refresh"><span class="glyphicon glyphicon-repeat"></span> Refresh</a></li>
-					 <li class=""><a href="#" data-toggle="modal" data-target="#modal-dialog" id="DoReboot"><span class="glyphicon glyphicon-off"></span> Reboot</a></li>
-                  </li>
-               </ul>
-            </div>
-         </div>
-      </nav>
+	<script type="text/javascript" src="/js/menubar.js"></script>
 	<div id="modal-dialog" class="modal fade">
 		<div class="modal-dialog">
 			<div class="modal-content">
@@ -350,23 +240,82 @@ $( document ).ready(function() {
                 </div>
 			</div>
 		</div>
-	</div>	  
+	</div>
 	<p id="error1"></p><p id="error2"></p><p id="error3"></p><p id="error4"></p>
       <div class="container">
-      <div class="row">
-      <div class="col-md-4">
-        <div id="header" class="page-header" style="display: none;">
-			<h1>GPIO Configuration</h1>
-		</div>
-        <div id="saving" class="page-header" style="display: none;">
-			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Saving  . . .
-		</div>
+      <div id="loading" class="row"><div class="col-md-4"><div class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span></span> Loading . . .</div></div></div>
         <div id="reboot" class="page-header" style="display: none;">
-			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting . . .
+			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting, please wait . . .
 		</div>
-        <div id="loading" class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading . . .
+		<div id="header" class="row" style="display: none;">
+      <div class="col-md-4">
+         <div class="page-header">
+            <h1>Security</h1>
 		</div>
-            <form id="gpio_form" action="#" method="POST" style="display: none;">
+            <form id='security_form' action='#' method='POST'>
+               <div class='panel panel-default'>
+                  <div class='panel-body'>
+                     <input type='hidden' name='form' value='security'>
+                     <div class="form-group">
+                        <div class="input-group"><span class="input-group-addon">Enable </span><span class="form-control"><input type="checkbox" name="security_bool"> </span></div>
+                     </div>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Username </span><input type='text' id='username' name='username' value='' class='form-control' aria-describedby='basic-addon1'></div>
+                     </div>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Password </span><input type='password' id='password' name='password' value='' class='form-control' aria-describedby='basic-addon2'></div>
+                     </div>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>API key </span><input type='text' id='apikey' name='apikey' value='' class='form-control' aria-describedby='basic-addon2'></div>
+                     </div>
+				</div>
+                  <div class='panel-footer clearfix'>
+                     <div class='pull-right'><button type='submit' class='btn btn-default'>Send</button></div>
+                  </div>
+               </div>
+            </form>
+            <div class='clearfix visible-lg'></div>
+			</div>
+      <div class="col-md-4">
+         <div class="page-header">
+            <h1>Device settings</h1>
+         </div>
+            <form id='bslocal_form' action='#' method='POST'>
+               <div class='panel panel-default'>
+                  <div class='panel-body'>
+                     <input type='hidden' name='form' value='bslocal'>
+                     <div class="form-group">
+                        <div class="input-group"><span class="input-group-addon">Use local Bootstrap </span><span class="form-control"><input type="checkbox" name="bslocal_bool"> </span></div>
+                     </div>
+				</div>
+                  <div class='panel-footer clearfix'>
+                     <div class='pull-right'><button type='submit' class='btn btn-default'>Send</button></div>
+                  </div>
+               </div>
+            </form>
+            <div class='clearfix visible-lg'></div>
+			
+            <form id='devicename_form' action='#' method='POST'>
+               <div class='panel panel-default'>
+                  <div class='panel-body'>
+                     <input type='hidden' name='form' value='devicename'>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Device name </span><input type='text' id='devicename' name='devicename' value='' class='form-control' aria-describedby='basic-addon1'></div>
+                     </div>
+				</div>
+                  <div class='panel-footer clearfix'>
+                     <div class='pull-right'><button type='submit' class='btn btn-default'>Send</button></div>
+                  </div>
+               </div>
+            </form>
+            <div class='clearfix visible-lg'></div>
+			
+			</div>
+      <div class="col-md-4">
+      <div class="page-header">
+         <h1>GPIO Configuration</h1>
+      </div>
+            <form id="gpio_form" action="#" method="POST">
                <div class="panel panel-default">
                   <div class="panel-body">
                      <input type="hidden" name="form" value="gpio">
@@ -428,8 +377,10 @@ $( document ).ready(function() {
 			</div>
             </form>
             <div class="clearfix visible-lg"></div>
-			</div>
-			</div>
-			</div>
+         </div>
+      </div>
+	  </div>
+	  </div>
+	  </div>
    </body>
 </html>

@@ -1,4 +1,3 @@
-#include <WiFiClient.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
@@ -11,6 +10,7 @@
 #include "DHT.h"
 #include <FS.h>
 #include <elapsedMillis.h>
+
 
 //holds the current upload
 File UploadFile;
@@ -35,7 +35,7 @@ DHT dht = DHT(0, DHT11);
 IRsend irsend(5); //an IR led is connected to GPIO pin 0
 
 String sep = "____";
-String ESPimaticVersion = "0.1.23";
+String ESPimaticVersion = "0.1.24";
 String DS18B20Enabled = "0";
 String DHTEnabled = "0";
 String MatrixEnabled = "0";
@@ -47,6 +47,9 @@ String WMode = "";
 int FSTotal;
 int FSUsed;
 String MatrixIntensity;
+String DeviceName;
+String EnableWebAuth;
+String BSlocal;
 
 // EEPROM Adress & Length
 #define ssid_Address 0
@@ -85,8 +88,14 @@ String MatrixIntensity;
 #define relay2type_Address 345
 #define relay3type_Address 346
 #define relay4type_Address 347
-int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address, relay1type_Address, relay2type_Address, relay3type_Address, relay4type_Address};
-int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2, 1, 1 ,1 ,1};
+#define devicename_Address 348
+#define webuser_Address 378
+#define webpass_Address 403
+#define enablewebauth_Address 429
+#define espimaticapikey_Address 430
+#define bslocal_Address 445
+int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address, relay1type_Address, relay2type_Address, relay3type_Address, relay4type_Address, devicename_Address, webuser_Address, webpass_Address, enablewebauth_Address, espimaticapikey_Address, bslocal_Address};
+int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2, 1, 1 ,1 ,1, 30, 25, 25, 1, 15, 1};
 int StartAddress = 0;
 
 #define ErrorWifi 0
@@ -340,12 +349,16 @@ void setup()
       FSUsed = fs_info.usedBytes;
     }
   }
+
+  BSlocal = HandleEeprom(bslocal_Address, "read");
   
   String IREnabled = HandleEeprom(enableir_Address, "read");
   if (IREnabled == "1")
   {
     irsend.begin();
   }
+
+  DeviceName = HandleEeprom(devicename_Address, "read");
 
   MatrixEnabled = HandleEeprom(enablematrix_Address, "read");
   if (MatrixEnabled == "1")
@@ -541,6 +554,8 @@ void setup()
   
 
   server.on("/ping", handle_ping);
+  server.on("/loginm", handle_loginm_html);
+  server.on("/login_ajax", handle_login_ajax);
   server.on("/root_ajax", handle_root_ajax);
   server.on("/ds18b20_ajax", handle_ds18b20_ajax);
   server.on("/wifi_ajax", handle_wifi_ajax);
@@ -548,15 +563,13 @@ void setup()
   server.on("/ledmatrix_ajax", handle_ledmatrix_ajax);
   server.on("/irled_ajax", handle_irled_ajax);
   server.on("/relay_ajax", handle_relay_ajax);
-  server.on("/gpio_ajax", handle_gpio_ajax);
   server.on("/dht_ajax", handle_dht_ajax);
+  server.on("/esp_ajax", handle_esp_ajax);
   server.on("/api", handle_api);
   server.on("/updatefwm", handle_updatefwm_html);
   server.on("/fupload", handle_fupload_html);
   server.on("/filemanager_ajax", handle_filemanager_ajax);
   server.on("/delete", handleFileDelete);
-
-  
 
   // Upload firmware:
   server.on("/updatefw2", HTTP_POST, []() {
@@ -612,7 +625,23 @@ void setup()
       Serial.setDebugOutput(true);
         //fileName = upload.filename;
         Serial.println("Upload Name: " + fileName);
-        String path = "/" + fileName;
+        String path;
+         if (fileName.indexOf(".css") >= 0)
+         {
+            path = "/css/" + fileName;
+         }
+         else if (fileName.indexOf(".js") >= 0)
+         {
+            path = "/js/" + fileName;
+         }
+         else if (fileName.indexOf(".otf") >= 0 || fileName.indexOf(".eot") >= 0 || fileName.indexOf(".svg") >= 0 || fileName.indexOf(".ttf") >= 0 || fileName.indexOf(".woff") >= 0 || fileName.indexOf(".woff2") >= 0)
+         {
+            path = "/fonts/" + fileName;
+         }
+         else 
+         {
+          path = "/" + fileName;
+        }
         UploadFile = SPIFFS.open(path, "w");
         // already existing file will be overwritten!
     }
@@ -639,8 +668,16 @@ void setup()
       server.send(404, "text/plain", "FileNotFound");
   });
 
+
+  //here the list of headers to be recorded
+  const char * headerkeys[] = {"User-Agent","Cookie"} ;
+  size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
+  //ask server to track these headers
+  server.collectHeaders(headerkeys, headerkeyssize );
   server.begin();
   Serial.println("HTTP server started");
+
+  EnableWebAuth = HandleEeprom(enablewebauth_Address, "read");
 
   DHTEnabled = HandleEeprom(enabledht_Address, "read");
   if (DHTEnabled == "1")
@@ -711,22 +748,50 @@ String getContentType(String filename) {
   return "text/plain";
 }
 
-bool handleFileRead(String path) {
+bool handleFileRead(String path)
+{
   Serial.println("handleFileRead: " + path);
   if (path.endsWith("/")) path += "root.html";
+  if (path == "/js/insert.js" && BSlocal != "1")
+  {
+    path = "/js/insert-web.js";
+  }
+  if (path == "/js/insert.js" && BSlocal == "1")
+  {
+    path = "/js/insert-local.js";
+  }
+
+  
   String contentType = getContentType(path);
   String pathWithGz = path + ".gz";
-  if (SPIFFS.exists(pathWithGz) || SPIFFS.exists(path)) {
-    if (SPIFFS.exists(pathWithGz))
-      path += ".gz";
-    File file = SPIFFS.open(path, "r");
-    //server.send ( 304, "text/plain", "");
-      server.sendHeader("Connection", "close");
-    size_t sent = server.streamFile(file, contentType);
-    size_t contentLength = file.size();
-
-    file.close();
-    return true;
+  if (SPIFFS.exists(pathWithGz) || SPIFFS.exists(path))
+  {
+    // ingelogd?
+    String header;
+    if (!is_authenticated(1) && path != "/login.html" && EnableWebAuth == "1")
+    {
+      String header = "HTTP/1.1 301 OK\r\nLocation: /login.html\r\nCache-Control: no-cache\r\n\r\n";
+      server.sendContent(header); 
+    }
+    else
+    {
+      // je komt hier als je ingelogd bent
+      if (SPIFFS.exists(pathWithGz))
+        path += ".gz";      
+      File file = SPIFFS.open(path, "r");
+      if ( (path.startsWith("/css/") || path.startsWith("/js/") || path.startsWith("/fonts/")) &&  !path.startsWith("/js/insert"))
+      {
+        server.sendHeader("Cache-Control"," max-age=31104000"); 
+      }
+      else
+      {
+        server.sendHeader("Connection", "close");
+      }
+      size_t sent = server.streamFile(file, contentType);
+      size_t contentLength = file.size();
+      file.close();
+      return true;
+    }
   }
   else
   {
@@ -740,6 +805,16 @@ void handle_api()
   // Get vars for all commands
   String action = server.arg("action");
   String value = server.arg("value");
+  String api = server.arg("api");
+  String EspimaticApi = HandleEeprom(espimaticapikey_Address, "read");
+
+  if (api != EspimaticApi && EnableWebAuth == "1")
+  {
+    server.send ( 200, "text/html", "unauthorized");
+    delay(500);
+  }
+  else
+  {
 
   if (action == "ir")
   {
@@ -984,7 +1059,7 @@ void handle_api()
     delay(500);
     ESP.restart();
   }
-
+  }
 }
 
 void handle_ping()
@@ -995,7 +1070,15 @@ void handle_ping()
 
 void handle_updatefwm_html()
 {
-  server.send ( 200, "text/html", "<form method='POST' action='/updatefw2' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form><br<b>For firmware only!!</b>");
+  if (!is_authenticated(1) && EnableWebAuth == "1")
+  {
+    String header = "HTTP/1.1 301 OK\r\nLocation: /login.html\r\nCache-Control: no-cache\r\n\r\n";
+    server.sendContent(header); 
+  }
+  else
+  {
+    server.send ( 200, "text/html", "<form method='POST' action='/updatefw2' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form><br<b>For firmware only!!</b>");
+  }
 }
 
 void handle_wifim_html()
@@ -1062,605 +1145,783 @@ void handle_update_html2()
 
 void handle_ledmatrix_ajax()
 {
-  String form = server.arg("form");
-  if (form != "matrix")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    String matrix_enable = HandleEeprom(enablematrix_Address, "read");
-    String matrix_pin = HandleEeprom(matrixpin_Address, "read");
-    String matrix_show = HandleEeprom(showonmatrix_Address, "read");
-    String matrix_intensity = HandleEeprom(matrixintensity_Address, "read");
-    String matrixshow_listbox = ListBox(0, 3, matrix_show.toInt(), "matrix_show");
-    String matrixintensity_listbox = ListBox(0, 15, matrix_intensity.toInt(), "matrix_intensity");
-    String matrix_listbox = "";
-    if (matrix_pin != "")
-    {
-      matrix_listbox = HWListBox(0, 16, matrix_pin.toInt(), "matrix_pin", "ledmatrix");
-    }
-    else
-    {
-      matrix_listbox = HWListBox(0, 16, -1, "matrix_pin", "ledmatrix");
-    }
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", matrix_enable + sep + matrix_listbox + sep + matrixshow_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + matrixintensity_listbox);
+    server.send ( 200, "text/html", "unauthorized");
   }
-  if (form == "matrix")
+  else
   {
-    String matrix_boolArg = server.arg("matrix_bool");
-    String matrix_pinArg = server.arg("matrix_pin");
-    String matrix_showArg = server.arg("matrix_show");
-    String matrix_intensityArg = server.arg("matrix_intensity");
+	  String form = server.arg("form");
+	  if (form != "matrix")
+	  {
+		String matrix_enable = HandleEeprom(enablematrix_Address, "read");
+		String matrix_pin = HandleEeprom(matrixpin_Address, "read");
+		String matrix_show = HandleEeprom(showonmatrix_Address, "read");
+		String matrix_intensity = HandleEeprom(matrixintensity_Address, "read");
+		String matrixshow_listbox = ListBox(0, 3, matrix_show.toInt(), "matrix_show");
+		String matrixintensity_listbox = ListBox(0, 15, matrix_intensity.toInt(), "matrix_intensity");
+		String matrix_listbox = "";
+		if (matrix_pin != "")
+		{
+		  matrix_listbox = HWListBox(0, 16, matrix_pin.toInt(), "matrix_pin", "ledmatrix");
+		}
+		else
+		{
+		  matrix_listbox = HWListBox(0, 16, -1, "matrix_pin", "ledmatrix");
+		}
 
-    if (matrix_boolArg == "on")
-    {
-      matrix_boolArg = "1";
-    }
-    else
-    {
-      matrix_boolArg = "0";
-      lc.shutdown(0, true);
-      lc.shutdown(1, true);
-    }
+		// Glue everything together and send to client
+		server.send(200, "text/html", matrix_enable + sep + matrix_listbox + sep + matrixshow_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + matrixintensity_listbox);
+	  }
+	  if (form == "matrix")
+	  {
+		String matrix_boolArg = server.arg("matrix_bool");
+		String matrix_pinArg = server.arg("matrix_pin");
+		String matrix_showArg = server.arg("matrix_show");
+		String matrix_intensityArg = server.arg("matrix_intensity");
 
-    HandleEeprom(enablematrix_Address, "write", matrix_boolArg);
-    HandleEeprom(matrixpin_Address, "write", matrix_pinArg);
-    HandleEeprom(showonmatrix_Address, "write", matrix_showArg);
-    HandleEeprom(matrixintensity_Address, "write", matrix_intensityArg);
+		if (matrix_boolArg == "on")
+		{
+		  matrix_boolArg = "1";
+		}
+		else
+		{
+		  matrix_boolArg = "0";
+		  lc.shutdown(0, true);
+		  lc.shutdown(1, true);
+		}
 
-    server.send ( 200, "text/html", "OK");
-    delay(500);
-    ESP.restart();
-  }
+		HandleEeprom(enablematrix_Address, "write", matrix_boolArg);
+		HandleEeprom(matrixpin_Address, "write", matrix_pinArg);
+		HandleEeprom(showonmatrix_Address, "write", matrix_showArg);
+		HandleEeprom(matrixintensity_Address, "write", matrix_intensityArg);
+
+		server.send ( 200, "text/html", "OK");
+		delay(500);
+		ESP.restart();
+	  }
+	}
 }
 
 void handle_irled_ajax()
 {
-  String form = server.arg("form");
-  if (form != "irled")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    String irled_enable = HandleEeprom(enableir_Address, "read");
-    String irled_pin = HandleEeprom(irpin_Address, "read");
-    String irled_listbox = "";
-    if (irled_pin != "")
-    {
-      irled_listbox = HWListBox(0, 16, irled_pin.toInt(), "irled_pin", "irled");
-    }
-    else
-    {
-      irled_listbox = HWListBox(0, 16, -1, "irled_pin", "irled");
-    }
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", irled_enable + sep + irled_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    server.send ( 200, "text/html", "unauthorized");
   }
-  if (form == "irled")
+  else
   {
-    String irled_boolArg = server.arg("irled_bool");
-    String irled_pinArg = server.arg("irled_pin");
+	  String form = server.arg("form");
+	  if (form != "irled")
+	  {
+		String irled_enable = HandleEeprom(enableir_Address, "read");
+		String irled_pin = HandleEeprom(irpin_Address, "read");
+		String irled_listbox = "";
+		if (irled_pin != "")
+		{
+		  irled_listbox = HWListBox(0, 16, irled_pin.toInt(), "irled_pin", "irled");
+		}
+		else
+		{
+		  irled_listbox = HWListBox(0, 16, -1, "irled_pin", "irled");
+		}
 
-    if (irled_boolArg == "on")
-    {
-      irled_boolArg = "1";
-    }
-    else
-    {
-      irled_boolArg = "0";
-    }
+		// Glue everything together and send to client
+		server.send(200, "text/html", irled_enable + sep + irled_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+	  }
+	  if (form == "irled")
+	  {
+		String irled_boolArg = server.arg("irled_bool");
+		String irled_pinArg = server.arg("irled_pin");
 
-    HandleEeprom(enableir_Address, "write", irled_boolArg);
-    HandleEeprom(irpin_Address, "write", irled_pinArg);
+		if (irled_boolArg == "on")
+		{
+		  irled_boolArg = "1";
+		}
+		else
+		{
+		  irled_boolArg = "0";
+		}
 
-    server.send ( 200, "text/html", "OK");
-    delay(500);
-    ESP.restart();
-  }
+		HandleEeprom(enableir_Address, "write", irled_boolArg);
+		HandleEeprom(irpin_Address, "write", irled_pinArg);
+
+		server.send ( 200, "text/html", "OK");
+		delay(500);
+		ESP.restart();
+	  }
+	}
 }
-
-void handle_gpio_ajax()
-{
-  String form = server.arg("form");
-  if (form != "gpio")
-  {
-    String AllGpio = HandleEeprom(availablegpio_Address, "read");
-    // Length (with one extra character for the null terminator)
-    int str_len = AllGpio.length() + 1; 
-    // Prepare the character array (the buffer) 
-    char char_array[str_len];
-    // Copy it over 
-    AllGpio.toCharArray(char_array, str_len);
-
-    char gpio0 = AllGpio[0];
-    char gpio1 = AllGpio[1];
-    char gpio2 = AllGpio[2];
-    char gpio3 = AllGpio[3];
-    char gpio4 = AllGpio[4];
-    char gpio5 = AllGpio[5];
-    char gpio6 = AllGpio[6];
-    char gpio7 = AllGpio[7];
-    char gpio8 = AllGpio[8];
-    char gpio9 = AllGpio[9];
-    char gpio10 = AllGpio[10];
-    char gpio11 = AllGpio[11];
-    char gpio12 = AllGpio[12];
-    char gpio13 = AllGpio[13];
-    char gpio14 = AllGpio[14];
-    char gpio15 = AllGpio[15];
-    char gpio16 = AllGpio[16];
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", gpio0 + sep + gpio1 + sep + gpio2 + sep + gpio3 + sep + gpio4 + sep + gpio5 + sep + gpio6 + sep + gpio7 + sep + gpio8 + sep + gpio9 + sep + gpio10 + sep + gpio11 + sep + gpio12 + sep + gpio13 + sep + gpio14 + sep + gpio15 + sep + gpio16 );
-  }
-  if (form == "gpio")
-  {
-    String gpio0_boolArg = server.arg("gpio0_bool");
-    String gpio1_boolArg = server.arg("gpio1_bool");
-    String gpio2_boolArg = server.arg("gpio2_bool");
-    String gpio3_boolArg = server.arg("gpio3_bool");
-    String gpio4_boolArg = server.arg("gpio4_bool");
-    String gpio5_boolArg = server.arg("gpio5_bool");
-    String gpio6_boolArg = server.arg("gpio6_bool");
-    String gpio7_boolArg = server.arg("gpio7_bool");
-    String gpio8_boolArg = server.arg("gpio8_bool");
-    String gpio9_boolArg = server.arg("gpio9_bool");
-    String gpio10_boolArg = server.arg("gpio10_bool");
-    String gpio11_boolArg = server.arg("gpio11_bool");
-    String gpio12_boolArg = server.arg("gpio12_bool");
-    String gpio13_boolArg = server.arg("gpio13_bool");
-    String gpio14_boolArg = server.arg("gpio14_bool");
-    String gpio15_boolArg = server.arg("gpio15_bool");
-    String gpio16_boolArg = server.arg("gpio16_bool");
-
-    if (gpio0_boolArg != "1") { gpio0_boolArg = "0"; }
-    if (gpio1_boolArg != "1") { gpio1_boolArg = "0"; }
-    if (gpio2_boolArg != "1") { gpio2_boolArg = "0"; }
-    if (gpio3_boolArg != "1") { gpio3_boolArg = "0"; }
-    if (gpio4_boolArg != "1") { gpio4_boolArg = "0"; }
-    if (gpio5_boolArg != "1") { gpio5_boolArg = "0"; }
-    if (gpio6_boolArg != "1") { gpio6_boolArg = "0"; }
-    if (gpio7_boolArg != "1") { gpio7_boolArg = "0"; }
-    if (gpio8_boolArg != "1") { gpio8_boolArg = "0"; }
-    if (gpio9_boolArg != "1") { gpio9_boolArg = "0"; }
-    if (gpio10_boolArg != "1") { gpio10_boolArg = "0"; }
-    if (gpio11_boolArg != "1") { gpio11_boolArg = "0"; }
-    if (gpio12_boolArg != "1") { gpio12_boolArg = "0"; }
-    if (gpio13_boolArg != "1") { gpio13_boolArg = "0"; }
-    if (gpio14_boolArg != "1") { gpio14_boolArg = "0"; }
-    if (gpio15_boolArg != "1") { gpio15_boolArg = "0"; }
-    if (gpio16_boolArg != "1") { gpio16_boolArg = "0"; }
-
-    String AllGpio = gpio0_boolArg + gpio1_boolArg + gpio2_boolArg + gpio3_boolArg + gpio4_boolArg + gpio5_boolArg + gpio6_boolArg + gpio7_boolArg + gpio8_boolArg + gpio9_boolArg + gpio10_boolArg + gpio11_boolArg + gpio12_boolArg + gpio13_boolArg + gpio14_boolArg + gpio15_boolArg + gpio16_boolArg;
-    HandleEeprom(availablegpio_Address, "write", AllGpio);
-
-    server.send ( 200, "text/html", "OK");
-  }
-}
-
 
 void handle_relay_ajax()
 {
-  String form = server.arg("form");
-  if (form != "relay")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    String relay_enable = HandleEeprom(enablerelay_Address, "read");
-    String relay1_pin = HandleEeprom(relay1pin_Address, "read");
-    String relay2_pin = HandleEeprom(relay2pin_Address, "read");
-    String relay3_pin = HandleEeprom(relay3pin_Address, "read");
-    String relay4_pin = HandleEeprom(relay4pin_Address, "read");
-    String relay1type = HandleEeprom(relay1type_Address, "read");
-    String relay2type = HandleEeprom(relay2type_Address, "read");
-    String relay3type = HandleEeprom(relay3type_Address, "read");
-    String relay4type = HandleEeprom(relay4type_Address, "read");
-
-    String relay1type_listbox = ListBox(0, 1, relay1type.toInt(), "relay1_type");
-    String relay2type_listbox = ListBox(0, 1, relay2type.toInt(), "relay2_type");
-    String relay3type_listbox = ListBox(0, 1, relay3type.toInt(), "relay3_type");
-    String relay4type_listbox = ListBox(0, 1, relay4type.toInt(), "relay4_type");
-
-    String relay1_listbox = "";
-    if (relay1_pin != "")
-    {
-        relay1_listbox = HWListBox(0, 16, relay1_pin.toInt(), "relay1_pin", "relay");
-    }
-    else
-    {
-      relay1_listbox = HWListBox(0, 16, -1, "relay1_pin", "relay");
-    }
-
-    String relay2_listbox = "";
-    if (relay2_pin != "")
-    {
-        relay2_listbox = HWListBox(0, 16, relay2_pin.toInt(), "relay2_pin", "relay");
-    }
-    else
-    {
-      relay2_listbox = HWListBox(0, 16, -1, "relay2_pin", "relay");
-    }
-
-    String relay3_listbox = "";
-    if (relay3_pin != "")
-    {
-        relay3_listbox = HWListBox(0, 16, relay3_pin.toInt(), "relay3_pin", "relay");
-    }
-    else
-    {
-      relay3_listbox = HWListBox(0, 16, -1, "relay3_pin", "relay");
-    }
-
-    String relay4_listbox = "";
-    if (relay4_pin != "")
-    {
-        relay4_listbox = HWListBox(0, 16, relay4_pin.toInt(), "relay4_pin", "relay");
-    }
-    else
-    {
-      relay4_listbox = HWListBox(0, 16, -1, "relay4_pin", "relay");
-    }
-
-
-    //String relay1_listbox = HWListBox(0, 16, relay1_pin.toInt(), "relay1_pin", "relay");
-    //String relay2_listbox = HWListBox(0, 16, relay2_pin.toInt(), "relay2_pin", "relay");
-    //String relay3_listbox = HWListBox(0, 16, relay3_pin.toInt(), "relay3_pin", "relay");
-    //String relay4_listbox = HWListBox(0, 16, relay4_pin.toInt(), "relay4_pin", "relay");
-    
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", relay_enable + sep + relay1_listbox + sep + relay2_listbox + sep + relay3_listbox + sep + relay4_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + relay1type_listbox + sep + relay2type_listbox + sep + relay3type_listbox + sep + relay4type_listbox);
+    server.send ( 200, "text/html", "unauthorized");
   }
-  if (form == "relay")
+  else
   {
-    String relay_boolArg = server.arg("relay_bool");
-    String relay1_pinArg = server.arg("relay1_pin");
-    String relay2_pinArg = server.arg("relay2_pin");
-    String relay3_pinArg = server.arg("relay3_pin");
-    String relay4_pinArg = server.arg("relay4_pin");
-    String relay1_typeArg = server.arg("relay1_type");
-    String relay2_typeArg = server.arg("relay2_type");
-    String relay3_typeArg = server.arg("relay3_type");
-    String relay4_typeArg = server.arg("relay4_type");
+	  String form = server.arg("form");
+	  if (form != "relay")
+	  {
+		String relay_enable = HandleEeprom(enablerelay_Address, "read");
+		String relay1_pin = HandleEeprom(relay1pin_Address, "read");
+		String relay2_pin = HandleEeprom(relay2pin_Address, "read");
+		String relay3_pin = HandleEeprom(relay3pin_Address, "read");
+		String relay4_pin = HandleEeprom(relay4pin_Address, "read");
+		String relay1type = HandleEeprom(relay1type_Address, "read");
+		String relay2type = HandleEeprom(relay2type_Address, "read");
+		String relay3type = HandleEeprom(relay3type_Address, "read");
+		String relay4type = HandleEeprom(relay4type_Address, "read");
 
-    if (relay_boolArg == "on")
-    {
-      relay_boolArg = "1";
-    }
-    else
-    {
-      relay_boolArg = "0";
-      // if relay is disabled, turn off *current* relay pins
-      String relay1_pin = HandleEeprom(relay1pin_Address, "read");
-      String relay2_pin = HandleEeprom(relay2pin_Address, "read");
-      String relay3_pin = HandleEeprom(relay3pin_Address, "read");
-      String relay4_pin = HandleEeprom(relay3pin_Address, "read");
-      //digitalWrite(relay1_pin.toInt(), LOW);
-      //digitalWrite(relay2_pin.toInt(), LOW);
-      //digitalWrite(relay3_pin.toInt(), LOW);
-      //digitalWrite(relay4_pin.toInt(), LOW);
-    }
+		String relay1type_listbox = ListBox(0, 1, relay1type.toInt(), "relay1_type");
+		String relay2type_listbox = ListBox(0, 1, relay2type.toInt(), "relay2_type");
+		String relay3type_listbox = ListBox(0, 1, relay3type.toInt(), "relay3_type");
+		String relay4type_listbox = ListBox(0, 1, relay4type.toInt(), "relay4_type");
 
-    HandleEeprom(enablerelay_Address, "write", relay_boolArg);
-    HandleEeprom(relay1pin_Address, "write", relay1_pinArg);
-    HandleEeprom(relay2pin_Address, "write", relay2_pinArg);
-    HandleEeprom(relay3pin_Address, "write", relay3_pinArg);
-    HandleEeprom(relay4pin_Address, "write", relay4_pinArg);
-    HandleEeprom(relay1type_Address, "write", relay1_typeArg);
-    HandleEeprom(relay2type_Address, "write", relay2_typeArg);
-    HandleEeprom(relay3type_Address, "write", relay3_typeArg);
-    HandleEeprom(relay4type_Address, "write", relay4_typeArg);
+		String relay1_listbox = "";
+		if (relay1_pin != "")
+		{
+			relay1_listbox = HWListBox(0, 16, relay1_pin.toInt(), "relay1_pin", "relay");
+		}
+		else
+		{
+		  relay1_listbox = HWListBox(0, 16, -1, "relay1_pin", "relay");
+		}
 
-    server.send ( 200, "text/html", "OK");
-    delay(500);
-    ESP.restart();
-  }
+		String relay2_listbox = "";
+		if (relay2_pin != "")
+		{
+			relay2_listbox = HWListBox(0, 16, relay2_pin.toInt(), "relay2_pin", "relay");
+		}
+		else
+		{
+		  relay2_listbox = HWListBox(0, 16, -1, "relay2_pin", "relay");
+		}
+
+		String relay3_listbox = "";
+		if (relay3_pin != "")
+		{
+			relay3_listbox = HWListBox(0, 16, relay3_pin.toInt(), "relay3_pin", "relay");
+		}
+		else
+		{
+		  relay3_listbox = HWListBox(0, 16, -1, "relay3_pin", "relay");
+		}
+
+		String relay4_listbox = "";
+		if (relay4_pin != "")
+		{
+			relay4_listbox = HWListBox(0, 16, relay4_pin.toInt(), "relay4_pin", "relay");
+		}
+		else
+		{
+		  relay4_listbox = HWListBox(0, 16, -1, "relay4_pin", "relay");
+		}
+
+
+		//String relay1_listbox = HWListBox(0, 16, relay1_pin.toInt(), "relay1_pin", "relay");
+		//String relay2_listbox = HWListBox(0, 16, relay2_pin.toInt(), "relay2_pin", "relay");
+		//String relay3_listbox = HWListBox(0, 16, relay3_pin.toInt(), "relay3_pin", "relay");
+		//String relay4_listbox = HWListBox(0, 16, relay4_pin.toInt(), "relay4_pin", "relay");
+		
+
+		// Glue everything together and send to client
+		server.send(200, "text/html", relay_enable + sep + relay1_listbox + sep + relay2_listbox + sep + relay3_listbox + sep + relay4_listbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + relay1type_listbox + sep + relay2type_listbox + sep + relay3type_listbox + sep + relay4type_listbox);
+	  }
+	  if (form == "relay")
+	  {
+		String relay_boolArg = server.arg("relay_bool");
+		String relay1_pinArg = server.arg("relay1_pin");
+		String relay2_pinArg = server.arg("relay2_pin");
+		String relay3_pinArg = server.arg("relay3_pin");
+		String relay4_pinArg = server.arg("relay4_pin");
+		String relay1_typeArg = server.arg("relay1_type");
+		String relay2_typeArg = server.arg("relay2_type");
+		String relay3_typeArg = server.arg("relay3_type");
+		String relay4_typeArg = server.arg("relay4_type");
+
+		if (relay_boolArg == "on")
+		{
+		  relay_boolArg = "1";
+		}
+		else
+		{
+		  relay_boolArg = "0";
+		  // if relay is disabled, turn off *current* relay pins
+		  String relay1_pin = HandleEeprom(relay1pin_Address, "read");
+		  String relay2_pin = HandleEeprom(relay2pin_Address, "read");
+		  String relay3_pin = HandleEeprom(relay3pin_Address, "read");
+		  String relay4_pin = HandleEeprom(relay3pin_Address, "read");
+		  //digitalWrite(relay1_pin.toInt(), LOW);
+		  //digitalWrite(relay2_pin.toInt(), LOW);
+		  //digitalWrite(relay3_pin.toInt(), LOW);
+		  //digitalWrite(relay4_pin.toInt(), LOW);
+		}
+
+		HandleEeprom(enablerelay_Address, "write", relay_boolArg);
+		HandleEeprom(relay1pin_Address, "write", relay1_pinArg);
+		HandleEeprom(relay2pin_Address, "write", relay2_pinArg);
+		HandleEeprom(relay3pin_Address, "write", relay3_pinArg);
+		HandleEeprom(relay4pin_Address, "write", relay4_pinArg);
+		HandleEeprom(relay1type_Address, "write", relay1_typeArg);
+		HandleEeprom(relay2type_Address, "write", relay2_typeArg);
+		HandleEeprom(relay3type_Address, "write", relay3_typeArg);
+		HandleEeprom(relay4type_Address, "write", relay4_typeArg);
+
+		server.send ( 200, "text/html", "OK");
+		delay(500);
+		ESP.restart();
+	  }
+	}
 }
 
 void handle_root_ajax()
 {
-  String disabled = "<span class='glyphicon glyphicon-ban-circle pull-right'>";
-  String enabled =  "<span class='glyphicon glyphicon-ok-circle pull-right'>";
-  String relay_on = "<span class='glyphicon glyphicon-resize-small pull-right'>";
-  String relay_off = "<span class='glyphicon glyphicon-resize-full pull-right'>";
-
-  // Collect everything for DS18B20
-  //String DS18B20Enabled = HandleEeprom(enableds18b20_Address, "read");
-  String temperature = disabled;
-  if (DS18B20Enabled == "1")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    //temperature = get_ds18b20() + String(" °C");
-    temperature = LastDS18B20 + String(" °C");
+    server.send ( 200, "text/html", "unauthorized");
   }
-
-  // Collect everything for DHT
-  String dht_temp = disabled;
-  String dht_hum = disabled;
-  if (DHTEnabled == "1")
+  else
   {
-    //temperature = get_ds18b20() + String(" °C");
-    dht_temp = LastDHTtemp + String(" °C");
-    dht_hum = LastDHThum + String(" &nbsp;%");
-  }
+    String disabled = "<span class='glyphicon glyphicon-ban-circle pull-right'>";
+    String enabled =  "<span class='glyphicon glyphicon-ok-circle pull-right'>";
+    String relay_on = "<span class='glyphicon glyphicon-resize-small pull-right'>";
+    String relay_off = "<span class='glyphicon glyphicon-resize-full pull-right'>";
+
+    // Collect everything for DS18B20
+    //String DS18B20Enabled = HandleEeprom(enableds18b20_Address, "read");
+    String temperature = disabled;
+    if (DS18B20Enabled == "1")
+    {
+      //temperature = get_ds18b20() + String(" °C");
+      temperature = LastDS18B20 + String(" °C");
+    }
+
+    // Collect everything for DHT
+    String dht_temp = disabled;
+    String dht_hum = disabled;
+    if (DHTEnabled == "1")
+    {
+      //temperature = get_ds18b20() + String(" °C");
+      dht_temp = LastDHTtemp + String(" °C");
+      dht_hum = LastDHThum + String(" &nbsp;%");
+    }
 
 
-  // Collect everything for uptime
-  long milliseconds   = (long) (timeElapsed / 1000000) % 1000;
-  long seconds    = (long) ((timeElapsed / (1000)) % 60);
-  long minutes    = (long) ((timeElapsed / (60000)) % 60);
-  long hours      = (long) ((timeElapsed / (3600000)) % 24);
-  long days       = (long) ((timeElapsed / (86400000)) % 10);
+    // Collect everything for uptime
+    long milliseconds   = (long) (timeElapsed / 1000000) % 1000;
+    long seconds    = (long) ((timeElapsed / (1000)) % 60);
+    long minutes    = (long) ((timeElapsed / (60000)) % 60);
+    long hours      = (long) ((timeElapsed / (3600000)) % 24);
+    long days       = (long) ((timeElapsed / (86400000)) % 10);
   
-  String Uptime     = days + String (" d ") + hours + String(" h ") + minutes + String(" min ") + seconds + String(" sec");
+    String Uptime     = days + String (" d ") + hours + String(" h ") + minutes + String(" min ") + seconds + String(" sec");
 
-  // Collect everything for LED Matrix
-  String MatrixEnabled = HandleEeprom(enablematrix_Address, "read");
-  String matrix  = disabled;
-  if (MatrixEnabled == "1")
-  {
-    matrix = enabled;
+    // Collect everything for LED Matrix
+    String MatrixEnabled = HandleEeprom(enablematrix_Address, "read");
+    String matrix  = disabled;
+    if (MatrixEnabled == "1")
+    {
+      matrix = enabled;
+    }
+    
+    // Collect everything for IR LED
+    String IREnabled = HandleEeprom(enableir_Address, "read");
+    String ir  = disabled;
+    if (IREnabled == "1")
+    {
+      ir = enabled;
+    }
+
+    // Collect everything for relay
+    String RelayEnabled = HandleEeprom(enablerelay_Address, "read");
+    String relay1 = relay_off;
+    String relay2 = relay_off;
+    String relay3 = relay_off;
+    String relay4 = relay_off;
+    String relay  = disabled;
+    if (RelayEnabled == "1")
+    {
+      relay = enabled;
+
+      String relay1pin = HandleEeprom(relay1pin_Address, "read");
+      String relay2pin = HandleEeprom(relay2pin_Address, "read");
+      String relay3pin = HandleEeprom(relay3pin_Address, "read");
+      String relay4pin = HandleEeprom(relay4pin_Address, "read");
+      String relay1type = HandleEeprom(relay1type_Address, "read");
+      String relay2type = HandleEeprom(relay2type_Address, "read");
+      String relay3type = HandleEeprom(relay3type_Address, "read");
+      String relay4type = HandleEeprom(relay4type_Address, "read");
+
+      int relay1_status = digitalRead(relay1pin.toInt());
+      int relay2_status = digitalRead(relay2pin.toInt());
+      int relay3_status = digitalRead(relay3pin.toInt());
+      int relay4_status = digitalRead(relay4pin.toInt());
+
+        if (relay1_status == 0 && relay1type == "0")
+        {
+          relay1 = relay_on;
+        }
+        if (relay1_status == 1 && relay1type == "1")
+        {
+          relay1 = relay_on;
+        }
+
+        if (relay2_status == 0 && relay2type == "0")
+        {
+          relay2 = relay_on;
+        }
+        if (relay2_status == 1 && relay2type == "1")
+        {
+          relay2 = relay_on;
+        }
+
+        if (relay3_status == 0 && relay3type == "0")
+        {
+          relay3 = relay_on;
+        }
+        if (relay3_status == 1 && relay3type == "1")
+        {
+          relay3 = relay_on;
+        }
+
+        if (relay4_status == 0 && relay4type == "0")
+        {
+          relay4 = relay_on;
+        }
+        if (relay4_status == 1 && relay4type == "1")
+        {
+          relay4 = relay_on;
+        }
+    }
+
+    // Collect free memory
+    int FreeHeap = ESP.getFreeHeap();
+  
+    // Glue everything together and send to client
+    server.send(200, "text/html", temperature + sep + Uptime + sep + matrix + sep + ir + sep + relay + sep + relay1 + sep + relay2 + sep + relay3 + sep + relay4 + sep + ESPimaticVersion + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + dht_temp + sep + dht_hum + sep + FSTotal + sep + FSUsed + sep + FreeHeap + sep + DeviceName + sep + EnableWebAuth);
   }
-
-  // Collect everything for IR LED
-  String IREnabled = HandleEeprom(enableir_Address, "read");
-  String ir  = disabled;
-  if (IREnabled == "1")
-  {
-    ir = enabled;
-  }
-
-  // Collect everything for relay
-  String RelayEnabled = HandleEeprom(enablerelay_Address, "read");
-  String relay1 = relay_off;
-  String relay2 = relay_off;
-  String relay3 = relay_off;
-  String relay4 = relay_off;
-  String relay  = disabled;
-  if (RelayEnabled == "1")
-  {
-    relay = enabled;
-
-    String relay1pin = HandleEeprom(relay1pin_Address, "read");
-    String relay2pin = HandleEeprom(relay2pin_Address, "read");
-    String relay3pin = HandleEeprom(relay3pin_Address, "read");
-    String relay4pin = HandleEeprom(relay4pin_Address, "read");
-    String relay1type = HandleEeprom(relay1type_Address, "read");
-    String relay2type = HandleEeprom(relay2type_Address, "read");
-    String relay3type = HandleEeprom(relay3type_Address, "read");
-    String relay4type = HandleEeprom(relay4type_Address, "read");
-
-    int relay1_status = digitalRead(relay1pin.toInt());
-    int relay2_status = digitalRead(relay2pin.toInt());
-    int relay3_status = digitalRead(relay3pin.toInt());
-    int relay4_status = digitalRead(relay4pin.toInt());
-
-      if (relay1_status == 0 && relay1type == "0")
-      {
-        relay1 = relay_on;
-      }
-      if (relay1_status == 1 && relay1type == "1")
-      {
-        relay1 = relay_on;
-      }
-
-      if (relay2_status == 0 && relay2type == "0")
-      {
-        relay2 = relay_on;
-      }
-      if (relay2_status == 1 && relay2type == "1")
-      {
-        relay2 = relay_on;
-      }
-
-      if (relay3_status == 0 && relay3type == "0")
-      {
-        relay3 = relay_on;
-      }
-      if (relay3_status == 1 && relay3type == "1")
-      {
-        relay3 = relay_on;
-      }
-
-      if (relay4_status == 0 && relay4type == "0")
-      {
-        relay4 = relay_on;
-      }
-      if (relay4_status == 1 && relay4type == "1")
-      {
-        relay4 = relay_on;
-      }
-
-  }
-
-  int FreeHeap = ESP.getFreeHeap();
-
-  // Glue everything together and send to client
-  server.send(200, "text/html", temperature + sep + Uptime + sep + matrix + sep + ir + sep + relay + sep + relay1 + sep + relay2 + sep + relay3 + sep + relay4 + sep + ESPimaticVersion + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + dht_temp + sep + dht_hum + sep + FSTotal + sep + FSUsed + sep + FreeHeap);
 }
 
 
+void handle_esp_ajax()
+{
+  if (!is_authenticated(0) && EnableWebAuth == "1")
+  {
+    server.send ( 200, "text/html", "unauthorized");
+  }
+  else
+  {
+	  String form = server.arg("form");
+	  if (form != "esp" && form != "gpio" && form != "security"  && form != "bslocal")
+	  {
+		// Get device name
+		DeviceName = HandleEeprom(devicename_Address, "read");
 
+		// Get WebAuth
+		EnableWebAuth = HandleEeprom(enablewebauth_Address, "read");
+		String WebUser = HandleEeprom(webuser_Address, "read");
+		String WebPass = HandleEeprom(webpass_Address, "read");
+
+		// Get API key
+		String EspimaticApi = HandleEeprom(espimaticapikey_Address, "read");
+
+		// Get setting to use local Bootstrap files
+		BSlocal = HandleEeprom(bslocal_Address, "read");
+		
+		String AllGpio = HandleEeprom(availablegpio_Address, "read");
+		// Length (with one extra character for the null terminator)
+		int str_len = AllGpio.length() + 1; 
+		// Prepare the character array (the buffer) 
+		char char_array[str_len];
+		// Copy it over 
+		AllGpio.toCharArray(char_array, str_len);
+
+		char gpio0 = AllGpio[0];
+		char gpio1 = AllGpio[1];
+		char gpio2 = AllGpio[2];
+		char gpio3 = AllGpio[3];
+		char gpio4 = AllGpio[4];
+		char gpio5 = AllGpio[5];
+		char gpio6 = AllGpio[6];
+		char gpio7 = AllGpio[7];
+		char gpio8 = AllGpio[8];
+		char gpio9 = AllGpio[9];
+		char gpio10 = AllGpio[10];
+		char gpio11 = AllGpio[11];
+		char gpio12 = AllGpio[12];
+		char gpio13 = AllGpio[13];
+		char gpio14 = AllGpio[14];
+		char gpio15 = AllGpio[15];
+		char gpio16 = AllGpio[16];
+
+		// Glue everything together and send to client
+		server.send(200, "text/html", gpio0 + sep + gpio1 + sep + gpio2 + sep + gpio3 + sep + gpio4 + sep + gpio5 + sep + gpio6 + sep + gpio7 + sep + gpio8 + sep + gpio9 + sep + gpio10 + sep + gpio11 + sep + gpio12 + sep + gpio13 + sep + gpio14 + sep + gpio15 + sep + gpio16 + sep + DeviceName + sep + EnableWebAuth + sep + WebUser + sep + WebPass  + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + EspimaticApi + sep + BSlocal);
+	  }
+	  if (form == "devicename")
+	  {
+		String devicenameArg = server.arg("devicename");
+
+		HandleEeprom(devicename_Address, "write", devicenameArg);
+		server.send ( 200, "text/html", "OK");
+		delay(500);
+		//ESP.restart();
+	  }
+
+	  if (form == "bslocal")
+	  {
+		String bslocalArg = server.arg("bslocal_bool");
+
+		if (bslocalArg == "on")
+		{
+		  bslocalArg = "1";
+		}
+		else
+		{
+		  bslocalArg = "0";
+		}
+
+
+		HandleEeprom(bslocal_Address, "write", bslocalArg);
+		BSlocal == bslocalArg;
+		server.send ( 200, "text/html", "OK");
+		delay(500);
+		//ESP.restart();
+	  }
+
+	  if (form == "gpio")
+	  {
+		String gpio0_boolArg = server.arg("gpio0_bool");
+		String gpio1_boolArg = server.arg("gpio1_bool");
+		String gpio2_boolArg = server.arg("gpio2_bool");
+		String gpio3_boolArg = server.arg("gpio3_bool");
+		String gpio4_boolArg = server.arg("gpio4_bool");
+		String gpio5_boolArg = server.arg("gpio5_bool");
+		String gpio6_boolArg = server.arg("gpio6_bool");
+		String gpio7_boolArg = server.arg("gpio7_bool");
+		String gpio8_boolArg = server.arg("gpio8_bool");
+		String gpio9_boolArg = server.arg("gpio9_bool");
+		String gpio10_boolArg = server.arg("gpio10_bool");
+		String gpio11_boolArg = server.arg("gpio11_bool");
+		String gpio12_boolArg = server.arg("gpio12_bool");
+		String gpio13_boolArg = server.arg("gpio13_bool");
+		String gpio14_boolArg = server.arg("gpio14_bool");
+		String gpio15_boolArg = server.arg("gpio15_bool");
+		String gpio16_boolArg = server.arg("gpio16_bool");
+
+		if (gpio0_boolArg != "1") { gpio0_boolArg = "0"; }
+		if (gpio1_boolArg != "1") { gpio1_boolArg = "0"; }
+		if (gpio2_boolArg != "1") { gpio2_boolArg = "0"; }
+		if (gpio3_boolArg != "1") { gpio3_boolArg = "0"; }
+		if (gpio4_boolArg != "1") { gpio4_boolArg = "0"; }
+		if (gpio5_boolArg != "1") { gpio5_boolArg = "0"; }
+		if (gpio6_boolArg != "1") { gpio6_boolArg = "0"; }
+		if (gpio7_boolArg != "1") { gpio7_boolArg = "0"; }
+		if (gpio8_boolArg != "1") { gpio8_boolArg = "0"; }
+		if (gpio9_boolArg != "1") { gpio9_boolArg = "0"; }
+		if (gpio10_boolArg != "1") { gpio10_boolArg = "0"; }
+		if (gpio11_boolArg != "1") { gpio11_boolArg = "0"; }
+		if (gpio12_boolArg != "1") { gpio12_boolArg = "0"; }
+		if (gpio13_boolArg != "1") { gpio13_boolArg = "0"; }
+		if (gpio14_boolArg != "1") { gpio14_boolArg = "0"; }
+		if (gpio15_boolArg != "1") { gpio15_boolArg = "0"; }
+		if (gpio16_boolArg != "1") { gpio16_boolArg = "0"; }
+
+		String AllGpio = gpio0_boolArg + gpio1_boolArg + gpio2_boolArg + gpio3_boolArg + gpio4_boolArg + gpio5_boolArg + gpio6_boolArg + gpio7_boolArg + gpio8_boolArg + gpio9_boolArg + gpio10_boolArg + gpio11_boolArg + gpio12_boolArg + gpio13_boolArg + gpio14_boolArg + gpio15_boolArg + gpio16_boolArg;
+		HandleEeprom(availablegpio_Address, "write", AllGpio);
+
+		server.send ( 200, "text/html", "OK");
+	  }
+
+	  if (form == "security")
+	  {
+		String securityArg = server.arg("security_bool");
+		String usernameArg = server.arg("username");
+		String passwordArg = server.arg("password");
+		String apikeyArg = server.arg("apikey");
+
+		if (securityArg == "on")
+		{
+		  securityArg = "1";
+		}
+		else
+		{
+		  securityArg = "0";
+		}
+
+		HandleEeprom(enablewebauth_Address, "write", securityArg);
+		HandleEeprom(webuser_Address, "write", usernameArg);
+		HandleEeprom(webpass_Address, "write", passwordArg);
+		HandleEeprom(espimaticapikey_Address, "write", apikeyArg);
+		EnableWebAuth = "1";
+		server.send ( 200, "text/html", "OK");
+		delay(500);
+		//ESP.restart();
+
+	  }
+	}
+}
 
 void handle_ds18b20_ajax()
 {
-  String form = server.arg("form");
-  if (form != "ds18b20")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    String ds18b20_var = HandleEeprom(ds18b20var_Address, "read");
-    String ds18b20_enable = HandleEeprom(enableds18b20_Address, "read");
-    String ds18b20_pin = HandleEeprom(ds18b20pin_Address, "read");
-    String ds18b20_listbox = "";
-    if (ds18b20_pin != "")
-    {
-        ds18b20_listbox = HWListBox(0, 16, ds18b20_pin.toInt(), "DS18B20_pin", "ds18b20");
-    }
-    else
-    {
-      ds18b20_listbox = HWListBox(0, 16, -1, "DS18B20_pin", "ds18b20");
-    }
-    
-    String ds18b20_interval = HandleEeprom(ds18b20interval_Address, "read");
-    String ds18b20_resolution = HandleEeprom(ds18b20resolution_Address, "read");
-
-    String ds18b20_intlistbox = ListBox(1, 5, ds18b20_interval.toInt(), "DS18B20_interval");
-    String ds18b20_resolistbox = ListBox(9, 12, ds18b20_resolution.toInt(), "DS18B20_resolution");
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", ds18b20_enable + sep + ds18b20_listbox + sep + ds18b20_intlistbox + sep + ds18b20_resolistbox + sep + ds18b20_var + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    server.send ( 200, "text/html", "unauthorized");
   }
-  if (form == "ds18b20")
+  else
   {
-    String DS18B20_boolArg = server.arg("DS18B20_bool");
-    String DS18B20_pinArg = server.arg("DS18B20_pin");
-    String DS18B20_varArg = server.arg("DS18B20_var");
-    String DS18B20_intervalArg = server.arg("DS18B20_interval");
-    String DS18B20_resolutionArg = server.arg("DS18B20_resolution");
-
-    if (DS18B20_boolArg == "on")
+    String form = server.arg("form");
+    if (form != "ds18b20")
     {
-      DS18B20_boolArg = "1";
+      String ds18b20_var = HandleEeprom(ds18b20var_Address, "read");
+      String ds18b20_enable = HandleEeprom(enableds18b20_Address, "read");
+      String ds18b20_pin = HandleEeprom(ds18b20pin_Address, "read");
+      String ds18b20_listbox = "";
+      if (ds18b20_pin != "")
+      {
+          ds18b20_listbox = HWListBox(0, 16, ds18b20_pin.toInt(), "DS18B20_pin", "ds18b20");
+      }
+      else
+      {
+        ds18b20_listbox = HWListBox(0, 16, -1, "DS18B20_pin", "ds18b20");
+      }
+      
+      String ds18b20_interval = HandleEeprom(ds18b20interval_Address, "read");
+      String ds18b20_resolution = HandleEeprom(ds18b20resolution_Address, "read");
+  
+      String ds18b20_intlistbox = ListBox(1, 5, ds18b20_interval.toInt(), "DS18B20_interval");
+      String ds18b20_resolistbox = ListBox(9, 12, ds18b20_resolution.toInt(), "DS18B20_resolution");
+
+      // Glue everything together and send to client
+      server.send(200, "text/html", ds18b20_enable + sep + ds18b20_listbox + sep + ds18b20_intlistbox + sep + ds18b20_resolistbox + sep + ds18b20_var + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
     }
-    else
+    if (form == "ds18b20")
     {
-      DS18B20_boolArg = "0";
+      String DS18B20_boolArg = server.arg("DS18B20_bool");
+      String DS18B20_pinArg = server.arg("DS18B20_pin");
+      String DS18B20_varArg = server.arg("DS18B20_var");
+      String DS18B20_intervalArg = server.arg("DS18B20_interval");
+      String DS18B20_resolutionArg = server.arg("DS18B20_resolution");
+  
+      if (DS18B20_boolArg == "on")
+      {
+        DS18B20_boolArg = "1";
+      }
+      else
+      {
+        DS18B20_boolArg = "0";
+      }
+
+      HandleEeprom(enableds18b20_Address, "write", DS18B20_boolArg);
+      HandleEeprom(ds18b20pin_Address, "write", DS18B20_pinArg);
+      HandleEeprom(ds18b20var_Address, "write", DS18B20_varArg);
+      HandleEeprom(ds18b20interval_Address, "write", DS18B20_intervalArg);
+      HandleEeprom(ds18b20resolution_Address, "write", DS18B20_resolutionArg);
+
+      server.send ( 200, "text/html", "OK");
+      delay(500);
+      ESP.restart();
     }
-
-    HandleEeprom(enableds18b20_Address, "write", DS18B20_boolArg);
-    HandleEeprom(ds18b20pin_Address, "write", DS18B20_pinArg);
-    HandleEeprom(ds18b20var_Address, "write", DS18B20_varArg);
-    HandleEeprom(ds18b20interval_Address, "write", DS18B20_intervalArg);
-    HandleEeprom(ds18b20resolution_Address, "write", DS18B20_resolutionArg);
-
-    server.send ( 200, "text/html", "OK");
-    delay(500);
-    ESP.restart();
   }
 }
 
 void handle_dht_ajax()
 {
-  String form = server.arg("form");
-  if (form != "dht")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    String dht_enable = HandleEeprom(enabledht_Address, "read");
-    String dht_pin = HandleEeprom(dhtpin_Address, "read");
-    String dht_type = HandleEeprom(dhttype_Address, "read");
-    String dht_interval = HandleEeprom(dhtinterval_Address, "read");
-    String dhttemp_var = HandleEeprom(dhttempvar_Address, "read");
-    String dhthum_var = HandleEeprom(dhthumvar_Address, "read");
-    
-    String dht_listbox = "";
-    if (dht_pin != "")
-    {
-        dht_listbox = HWListBox(0, 16, dht_pin.toInt(), "dht_pin", "dht");
-    }
-    else
-    {
-      dht_listbox = HWListBox(0, 16, -1, "dht_pin", "dht");
-    }
-    
-    String dht_intlistbox = ListBox(1, 5, dht_interval.toInt(), "dht_interval");
-    String dht_typelistbox = ListBox(1, 2, dht_type.toInt(), "dht_type");
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", dht_enable + sep + dht_listbox + sep + dht_intlistbox + sep + dht_typelistbox + sep + dhttemp_var + sep + dhthum_var + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    server.send ( 200, "text/html", "unauthorized");
   }
-  if (form == "dht")
+  else
   {
-    String dht_boolArg = server.arg("dht_bool");
-    String dht_pinArg = server.arg("dht_pin");
-    String dht_tempvarArg = server.arg("dhttemp_var");
-    String dht_humvarArg = server.arg("dhthum_var");
-    String dht_typeArg = server.arg("dht_type");
-    String dht_intervalArg = server.arg("dht_interval");
+	  String form = server.arg("form");
+	  if (form != "dht")
+	  {
+		String dht_enable = HandleEeprom(enabledht_Address, "read");
+		String dht_pin = HandleEeprom(dhtpin_Address, "read");
+		String dht_type = HandleEeprom(dhttype_Address, "read");
+		String dht_interval = HandleEeprom(dhtinterval_Address, "read");
+		String dhttemp_var = HandleEeprom(dhttempvar_Address, "read");
+		String dhthum_var = HandleEeprom(dhthumvar_Address, "read");
+		
+		String dht_listbox = "";
+		if (dht_pin != "")
+		{
+			dht_listbox = HWListBox(0, 16, dht_pin.toInt(), "dht_pin", "dht");
+		}
+		else
+		{
+		  dht_listbox = HWListBox(0, 16, -1, "dht_pin", "dht");
+		}
+		
+		String dht_intlistbox = ListBox(1, 5, dht_interval.toInt(), "dht_interval");
+		String dht_typelistbox = ListBox(1, 2, dht_type.toInt(), "dht_type");
 
-    if (dht_boolArg == "on")
-    {
-      dht_boolArg = "1";
-    }
-    else
-    {
-      dht_boolArg = "0";
-    }
-    HandleEeprom(enabledht_Address, "write", dht_boolArg);
-    HandleEeprom(dhtpin_Address, "write", dht_pinArg);
-    HandleEeprom(dhttype_Address, "write", dht_typeArg);
-    HandleEeprom(dhtinterval_Address, "write", dht_intervalArg);
-    HandleEeprom(dhttempvar_Address, "write", dht_tempvarArg);
-    HandleEeprom(dhthumvar_Address, "write", dht_humvarArg);
-    
-    server.send ( 200, "text/html", "OK");
-    delay(500);
-    ESP.restart();
-  }
+		// Glue everything together and send to client
+		server.send(200, "text/html", dht_enable + sep + dht_listbox + sep + dht_intlistbox + sep + dht_typelistbox + sep + dhttemp_var + sep + dhthum_var + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+	  }
+	  if (form == "dht")
+	  {
+		String dht_boolArg = server.arg("dht_bool");
+		String dht_pinArg = server.arg("dht_pin");
+		String dht_tempvarArg = server.arg("dhttemp_var");
+		String dht_humvarArg = server.arg("dhthum_var");
+		String dht_typeArg = server.arg("dht_type");
+		String dht_intervalArg = server.arg("dht_interval");
+
+		if (dht_boolArg == "on")
+		{
+		  dht_boolArg = "1";
+		}
+		else
+		{
+		  dht_boolArg = "0";
+		}
+		HandleEeprom(enabledht_Address, "write", dht_boolArg);
+		HandleEeprom(dhtpin_Address, "write", dht_pinArg);
+		HandleEeprom(dhttype_Address, "write", dht_typeArg);
+		HandleEeprom(dhtinterval_Address, "write", dht_intervalArg);
+		HandleEeprom(dhttempvar_Address, "write", dht_tempvarArg);
+		HandleEeprom(dhthumvar_Address, "write", dht_humvarArg);
+		
+		server.send ( 200, "text/html", "OK");
+		delay(500);
+		ESP.restart();
+	  }
+	}
 }
-
 
 void handle_wifi_ajax()
 {
-  String form = server.arg("form");
-  if (form != "wifi")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    String ssidStored = HandleEeprom(ssid_Address, "read");
-    String passStored = HandleEeprom(password_Address, "read");
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", ssidStored + sep + passStored);
+    server.send ( 200, "text/html", "unauthorized");
   }
-  if (form == "wifi")
+  else
   {
-    String ssidArg = server.arg("ssid");
+	  String form = server.arg("form");
+	  if (form != "wifi")
+	  {
+		String ssidStored = HandleEeprom(ssid_Address, "read");
+		String passStored = HandleEeprom(password_Address, "read");
+
+		// Glue everything together and send to client
+		server.send(200, "text/html", ssidStored + sep + passStored);
+	  }
+	  if (form == "wifi")
+	  {
+		String ssidArg = server.arg("ssid");
+		String passArg = server.arg("password");
+
+		HandleEeprom(ssid_Address, "write", ssidArg);
+		HandleEeprom(password_Address, "write", passArg);
+		server.send ( 200, "text/html", "OK");
+		delay(500);
+		ESP.restart();
+	  }
+	}
+}
+
+void handle_login_ajax()
+{
+  String form = server.arg("form");
+  String action = server.arg("action");
+  if (action == "logoff")
+  {
+    String header = "HTTP/1.1 301 OK\r\nSet-Cookie: ESPIMATIC=0\r\nLocation: /login.html\r\nCache-Control: no-cache\r\n\r\n";
+    server.sendContent(header);
+  }
+  else if (form == "login")
+  {
+    String UserArg = server.arg("user");
     String passArg = server.arg("password");
 
-    HandleEeprom(ssid_Address, "write", ssidArg);
-    HandleEeprom(password_Address, "write", passArg);
-    server.send ( 200, "text/html", "OK");
-    delay(500);
-    ESP.restart();
+    String WebPass = HandleEeprom(webpass_Address, "read");
+    String WebUser = HandleEeprom(webuser_Address, "read");
+
+    MD5Builder md5;
+    md5.begin();
+    md5.add(WebPass);
+    md5.calculate();
+    String WebPassMD5 = md5.toString();
+
+    if (UserArg == WebUser && passArg == WebPass)
+    {
+      String header = "HTTP/1.1 301 OK\r\nSet-Cookie: ESPIMATIC=" + WebPassMD5 + "; max-age=300\r\nLocation: /\r\nCache-Control: no-cache\r\n\r\n";      
+      server.sendContent(header);
+    }
+    else
+    {
+		server.send ( 200, "text/html", "Username and/or password wrong");
+    }
   }
+  else
+  {
+	server.send ( 200, "text/html", "nothing");
+  }
+  
 }
 
 void handle_filemanager_ajax()
 {
-  String form = server.arg("form");
-  if (form != "filemanager")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    String HTML;
-    Dir dir = SPIFFS.openDir("/");
-    while (dir.next())
-    {
-      fileName = dir.fileName();
-      size_t fileSize = dir.fileSize();
-      HTML += String("<option>") + fileName + String("</option>");
-    }
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", HTML);
+    server.send ( 200, "text/html", "unauthorized");
   }
+  else
+  {
+	  String form = server.arg("form");
+	  if (form != "filemanager")
+	  {
+		String HTML;
+		Dir dir = SPIFFS.openDir("/");
+		while (dir.next())
+		{
+		  fileName = dir.fileName();
+		  size_t fileSize = dir.fileSize();
+		  HTML += String("<option>") + fileName + String("</option>");
+		}
+
+		// Glue everything together and send to client
+		server.send(200, "text/html", HTML);
+	  }
+	}
 }
 
 void handle_pimatic_ajax()
 {
-  String form = server.arg("form");
-  if (form != "pimatic")
+  if (!is_authenticated(0) && EnableWebAuth == "1")
   {
-    String PimaticHostStored = HandleEeprom(pimhost_Address, "read");
-    String PimaticPortStored = HandleEeprom(pimport_Address, "read");
-    String PimaticUserStored = HandleEeprom(pimuser_Address, "read");
-    String PimaticPassStored = HandleEeprom(pimpass_Address, "read");
-
-    // Glue everything together and send to client
-    server.send(200, "text/html", PimaticHostStored + sep + PimaticPortStored + sep + PimaticUserStored + sep + PimaticPassStored + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    server.send ( 200, "text/html", "unauthorized");
   }
-  if (form == "pimatic")
+  else
   {
-    String PimaticHostArg = server.arg("pimatichost");
-    String PimaticPortArg = server.arg("pimaticport");
-    String PimaticUserArg = server.arg("pimaticuser");
-    String PimaticPassArg = server.arg("pimaticpassword");
+	  String form = server.arg("form");
+	  if (form != "pimatic")
+	  {
+		String PimaticHostStored = HandleEeprom(pimhost_Address, "read");
+		String PimaticPortStored = HandleEeprom(pimport_Address, "read");
+		String PimaticUserStored = HandleEeprom(pimuser_Address, "read");
+		String PimaticPassStored = HandleEeprom(pimpass_Address, "read");
 
-    HandleEeprom(pimhost_Address, "write", PimaticHostArg);
-    HandleEeprom(pimport_Address, "write", PimaticPortArg);
-    HandleEeprom(pimuser_Address, "write", PimaticUserArg);
-    HandleEeprom(pimpass_Address, "write", PimaticPassArg);
+		// Glue everything together and send to client
+		server.send(200, "text/html", PimaticHostStored + sep + PimaticPortStored + sep + PimaticUserStored + sep + PimaticPassStored + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+	  }
+	  if (form == "pimatic")
+	  {
+		String PimaticHostArg = server.arg("pimatichost");
+		String PimaticPortArg = server.arg("pimaticport");
+		String PimaticUserArg = server.arg("pimaticuser");
+		String PimaticPassArg = server.arg("pimaticpassword");
 
-    server.send ( 200, "text/html", "OK");
-  }
+		HandleEeprom(pimhost_Address, "write", PimaticHostArg);
+		HandleEeprom(pimport_Address, "write", PimaticPortArg);
+		HandleEeprom(pimuser_Address, "write", PimaticUserArg);
+		HandleEeprom(pimpass_Address, "write", PimaticPassArg);
+
+		server.send ( 200, "text/html", "OK");
+	  }
+	}
 }
 
 void send_data(String data, String sensor)
@@ -1803,6 +2064,7 @@ void loop (void)
   if (millis() - dht_lastInterval > dht_sendInterval && DHTEnabled == "1")
   {
     String dhttemp_var = HandleEeprom(dhttempvar_Address, "read");
+    String dhthum_var = HandleEeprom(dhthumvar_Address, "read");
     String dhtTempHum = get_dht();
 
     int commaIndex = dhtTempHum.indexOf(",");
@@ -1814,6 +2076,11 @@ void loop (void)
     {
       send_data(dht_temp, dhttemp_var);
     }
+    if(dht_hum != "nan")
+    {
+      send_data(dht_hum, dhthum_var);
+    }
+    
     dht_lastInterval = millis();
   }
   server.handleClient();
@@ -1990,35 +2257,98 @@ String ListBox(int first, int last, int selected, String ListName)
 }
 
 // An empty ESP8266 Flash ROM must be formatted before using it, actual a problem
-void handleFormat() {
-  server.send ( 200, "text/html", "OK");
-  Serial.println("Format SPIFFS");
-  if (SPIFFS.format()) {
-    if (!SPIFFS.begin()) {
+void handleFormat()
+{
+  if (!is_authenticated(1) && EnableWebAuth == "1")
+  {
+    String header = "HTTP/1.1 301 OK\r\nLocation: /login.html\r\nCache-Control: no-cache\r\n\r\n";
+    server.sendContent(header); 
+  }
+  else
+  {
+    server.send ( 200, "text/html", "OK");
+    Serial.println("Format SPIFFS");
+    if (SPIFFS.format())
+    {
+      if (!SPIFFS.begin())
+      {
+        Serial.println("Format SPIFFS failed");
+      }
+    }
+    else
+    {
       Serial.println("Format SPIFFS failed");
     }
-  } else {
-    Serial.println("Format SPIFFS failed");
-  }
-  if (!SPIFFS.begin()) {
-    Serial.println("SPIFFS failed, needs formatting");
-  } else {
-    Serial.println("SPIFFS mounted");
+    if (!SPIFFS.begin())
+    {
+      Serial.println("SPIFFS failed, needs formatting");
+    }
+    else
+    {
+      Serial.println("SPIFFS mounted");
+    }
   }
 }
 
-void handleFileDelete() {
-  Serial.println("file deleten?");
-  if (server.args() == 0) return server.send(500, "text/plain", "BAD ARGS");
-  String path = server.arg(0);
-  if (!path.startsWith("/")) path = "/" + path;
-  Serial.println("handleFileDelete: " + path);
-  if (path == "/")
-    return server.send(500, "text/plain", "BAD PATH");
-  if (!SPIFFS.exists(path))
-    return server.send(404, "text/plain", "FileNotFound");
-  SPIFFS.remove(path);
-  server.send(200, "text/plain", "");
-  path = String();
+void handleFileDelete()
+{
+  if (!is_authenticated(1) && EnableWebAuth == "1")
+  {
+    server.send ( 200, "text/html", "unauthorized");
+  }
+  else
+  {
+	  if (server.args() == 0) return server.send(500, "text/plain", "BAD ARGS");
+	  String path = server.arg(0);
+	  if (!path.startsWith("/")) path = "/" + path;
+	  Serial.println("handleFileDelete: " + path);
+	  if (path == "/")
+		return server.send(500, "text/plain", "BAD PATH");
+	  if (!SPIFFS.exists(path))
+		return server.send(404, "text/plain", "FileNotFound");
+	  SPIFFS.remove(path);
+	  server.send(200, "text/plain", "");
+	  path = String();
+	}
+}
+
+
+void handle_loginm_html()
+{
+  String content = "<html><body><form action='/login_ajax' method='POST'>Please login<br>";
+  content += "]<input type='hidden' name='form' value='login'>";
+  content += "User:<input type='text' name='user' placeholder='user name'><br>";
+  content += "Password:<input type='password' name='password' placeholder='password'><br>";
+  content += "<input type='submit' name='SUBMIT' value='Submit'></form><br>";
+  server.send(200, "text/html", content);
+}
+
+
+bool is_authenticated(int SetCookie)
+{
+  String WebUser = HandleEeprom(webuser_Address, "read");
+  String WebPass = HandleEeprom(webpass_Address, "read");
+
+  MD5Builder md5;
+  md5.begin();
+  md5.add(WebPass);
+  md5.calculate();
+  String WebPassMD5 = md5.toString();
+  String ValidCookie = "ESPIMATIC=" + WebPassMD5;
+  if (server.hasHeader("Cookie"))
+  {
+    String cookie = server.header("Cookie");
+    if (cookie.indexOf(ValidCookie) != -1)
+    {
+      //String header = "HTTP/1.1 301 OK\r\nSet-Cookie: ESPIMATIC=" + WebPassMD5 + "; max-age=300\r\n\r\nCache-Control: no-cache\r\n\r\n";      
+      //server.sendContent(header);
+      if (SetCookie == 1)
+      {
+        server.sendHeader("Set-Cookie","ESPIMATIC=" + WebPassMD5 + "; max-age=300"); 
+        }
+      return true;
+    }
+  }
+  return false;  
 }
 
