@@ -1,6 +1,6 @@
 var menu = '      <nav class="navbar navbar-default">' +
 '         <div class="container-fluid">' +
-'            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic <sup>v0.1.24</sup></a></div>' +
+'            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic <sup>v0.1.25</sup></a></div>' +
 '            <div>' +
 '               <ul class="nav navbar-nav">' +
 '                  <li class="dropdown">' +
