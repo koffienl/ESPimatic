@@ -39,84 +39,87 @@ $( document ).ready(function() {
 	// When finished, show full page
 	RefreshData();
 	$("#loading").hide();
-	$("#header").show();
+	$("#header").show();	
+	$("#adc_form").show();	
 
 	// RefreshData function, the URL and Succes are different for every page
 	function RefreshData(){
 		$.ajax
 		({
 			type: "GET",
-			url: "/root_ajax",
+			url: "/adc_ajax",
 			data: "",
 			cache: false,
 			success: function(html)
 			{
 				var values = html.split("____");
-				$("#ds18b20_temperature").html(values[0]);
-				$("#uptime").html(values[1]);
-				$("#matrix").html(values[2]);
-				$("#irled").html(values[3]);
-				$("#relay").html(values[4]);
-				$("#devicename").html(values[19]);
-			
-				// Hide relay status if relay option is disabled
-				if ( values[4].indexOf('glyphicon-ban-circle') !== -1 )
+				$("#adc_var").val(values[1]);
+
+				if (values[0] == "1")
 				{
-					$("#relays").hide();
+					$("input[name=adc_bool]").prop("checked", true);
 				}
-				else
+				if (values[0] == "0" || values[0] == "")
 				{
-					$("#relay1").html(values[5]);
-					$("#relay2").html(values[6]);
-					$("#relay3").html(values[7]);
-					$("#relay4").html(values[8]);
-				}
-			
-				$("#version").html(values[9]);
-				$("#dht_temperature").html(values[14]);
-				$("#dht_humidity").html(values[15]);
-				var InUse = Math.round(( values[17] / (values[16] / 100) ));
-				$("#flash").html(InUse + "%");
-				$("#memory").html(values[18] + " bytes");
-				if (values[20] == "1")
-				{
-					$("#logoff").show();			
+					$("input[name=adc_bool]").prop("checked", false);
 				}
 				
-				$("#adc_value").html(values[21]);
+				$("#adc_interval").html(values[2]);
 				
 				// Retrieve errors from ESP and show them on the page
-				if (values[10] == "1")  // error wifi
+				if (values[3] == "1")  // error wifi
 				{
 					$("#error1").html('<div class="bs-example" id="errorblock1" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Could not connect to preferred WiFi network. Please check your network and WiFi settings.</div></div>');
 					$("#errorblock1").show();
 					$.ajax({type: "GET",url: "/api",data: {action:"clearerror",value:"wifi"},cache: false})
 				}
-				if (values[11] == "1")  // error eeprom
+				if (values[4] == "1")  // error eeprom
 				{
 					$("#error2").html('<div class="bs-example" id="errorblock2" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Eeprom values are inconsistent. please re-save all your settings.</div></div>');
 					$("#errorblock2").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"eeprom"},url: "/api",cache: false})
 					}
-				if (values[12] == "1")  // error ds18b20
+				if (values[5] == "1")  // error ds18b20
 				{
 					$("#error3").html('<div class="bs-example" id="errorblock3" style="display: none;"><div class="alert alert-danger fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Error!</strong> Configured DS18B20 sensor is probably not connected.</div></div>');
 					$("#errorblock3").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"ds18b20"},url: "/api",cache: false})
 				}
-				if (values[13] == "1")  // Upgrade message
+				if (values[5] == "1")  // Upgrade message
 				{
-					$("#error4").html('<div class="bs-example" id="errorblock4" style="display: none;"><div class="alert alert-success fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Succes!</strong> Succesfully installed ESPimatic version ' + values[9] + '</div></div>');
+					$("#error4").html('<div class="bs-example" id="errorblock4" style="display: none;"><div class="alert alert-success fade in" id="alert"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Succes!</strong> Succesfully installed new ESPimatic version</div></div>');
 					$("#errorblock4").show();
 					$.ajax({type: "GET",data: {action:"clearerror",value:"upgrade"},url: "/api",cache: false})
 				}
 			} 
 		});
 		};
+
+	// Function to submit (save) form data to ESP. Depending on the settings the ESP might reboot, then we have to trigger the CheckReboot function
+	$("#adc_form").submit(function(event) {
+		event.preventDefault();
+		$("#adc_form").hide();
+		$("#header").hide();
+		$("#saving").show();
+		var values = $(this).serialize();
+		$.ajax
+		({
+			url: "/adc_ajax",
+			type: "post",
+			data: values,
+			success: function(html)
+			{
+				$("#saving").hide();
+				$("#reboot").show();
+				WaitForReboot = 1;
+			}
+		});
+	});		
 		
 	// Function to send Reboot command to ESP and wait to come back online. Triggered after pushing the red 'Reboot' button from the modal popup
 	function DoReboot(){
 		$("#header").hide();
+		$("#adc_form").hide();
 		$("#reboot").show();
 		WaitForReboot = 1;
 		$.ajax
@@ -164,8 +167,7 @@ $( document ).ready(function() {
 	// Function to poll the ESP after a reboot command. Should Refresh data when back online again and disable polling
 	function CheckReboot(){
 		if (WaitForReboot == 1)
-		{
-		$.ajax({url: "/ping",type: "GET",data: "",success: function(html)
+		{$.ajax({url: "/ping",type: "GET",data: "",success: function(html)
 			{
 				WaitForReboot = 0;
 				$("#loading").show();
@@ -173,16 +175,13 @@ $( document ).ready(function() {
 				RefreshData();
 				$("#loading").hide();
 				$("#header").show();
+				$("#adc_form").show();
 			}
 			});	
 		}
-		else
-		{
-			RefreshData();		// If no reboot, refresh data every 2 seconds. Only for root.html
-		}
 	};
 });
-    </script>    
+</script>
    </head>
    <body>
 	<script type="text/javascript" src="/js/menubar.js"></script>
@@ -206,70 +205,45 @@ $( document ).ready(function() {
 	</div>	  
 	<p id="error1"></p><p id="error2"></p><p id="error3"></p><p id="error4"></p>
       <div class="container">
-      <div id="loading" class="row"><div class="col-md-4"><div class="page-header"><span class="fa fa-refresh fa-spin"></span></span> Loading . . .</div></div></div>
-        <div id="reboot" class="page-header" style="display: none;">
-			<span class="fa fa-refresh fa-spin"></span> Rebooting, please wait . . .
+      <div class="row">
+      <div class="col-md-4">
+        <div id="header" class="page-header" style="display: none;">
+			<h1>ADC Configuration</h1>
 		</div>
-      <div id="header" class="row" style="display: none;">
-      <div class="col-md-4">
-         <div class="page-header">
-            <h1>Sensor data</h1>
-         </div>
-         <div class="panel panel-default">
-            <div class="panel-body"><span class="glyphicon glyphicon-fire"></span> DS18B20 Temperature<span class="pull-right" id="ds18b20_temperature"></span></div>
-         </div>
-         <div class="panel panel-default">
-            <div class="panel-body">
-				<span class="glyphicon glyphicon-fire"></span> DHT Temperature<span class="pull-right" id="dht_temperature"></span>
-				<p class="text-left"><span class="glyphicon glyphicon-tint"></span> DHT Humidity<span class="pull-right" id="dht_humidity"></span><br>
-			</div>
-         </div>
-         <div class="panel panel-default">
-            <div class="panel-body"><span class="glyphicon glyphicon-scale"></span> ADC value<span class="pull-right" id="adc_value"></span></div>
-         </div>
-      </div>
-      <div class="col-md-4">
-         <div class="page-header">
-            <h1>System information</h1>
-         </div>
-         <div class="panel panel-default">
-            <div class="panel-body"><span class="glyphicon glyphicon-tag"></span> Device name<span class="pull-right"><span id="devicename"></span></span></div>
-         </div>
-         <div class="panel panel-default">
-            <div class="panel-body"><span class="glyphicon glyphicon-time"></span> Uptime<span class="pull-right"><span id="uptime"></span></span></div>
-         </div>
-         <div class="panel panel-default">
-            <div class="panel-body"><span class="glyphicon glyphicon-info-sign"></span> Version<span class="pull-right"><span id="version"></span></span></div>
-         </div>
-         <div class="panel panel-default">
-            <div class="panel-body"><span class="glyphicon glyphicon-hdd"></span> Flash space in use<span class="pull-right"><span id="flash"></span></span></div>
-         </div>
-         <div class="panel panel-default">
-            <div class="panel-body"><span class="glyphicon glyphicon-stats"></span> Free memory<span class="pull-right"><span id="memory"></span></span></div>
-         </div>
-	</div>
-      <div class="col-md-4">
-      <div class="page-header">
-         <h1>Device status</h1>
-      </div>
-      <div class="panel panel-default">
-         <div class="panel-body"><span class="glyphicon glyphicon-equalizer"></span> LED Matrix<span class="pull-right"><span id="matrix"></span></span></div>
-      </div>
-      <div class="panel panel-default">
-         <div class="panel-body"><span class="glyphicon glyphicon-eye-open"></span> IR LED<span class="pull-right"><span id="irled"></span></span></div>
-      </div>
-      <div class="panel panel-default">
-         <div class="panel-body">
-            <span class="glyphicon glyphicon-flash"></span> Relay<span class="pull-right"><span id="relay"></span></span>
-            <p class="text-left" id="relays"><span class="glyphicon glyphicon-flash"></span> Relay 1<span id="relay1"></span><br>
-			<span class="glyphicon glyphicon-flash"></span> Relay 2<span id="relay2"></span><br>
-			<span class="glyphicon glyphicon-flash"></span> Relay 3<span id="relay3"></span><br>
-			<span class="glyphicon glyphicon-flash"></span> Relay 4<span id="relay4"></span></p>
+        <div id="saving" class="page-header" style="display: none;">
+			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Saving  . . .
+		</div>
+        <div id="reboot" class="page-header" style="display: none;">
+			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Rebooting, please wait . . .
+		</div>
+        <div id="loading" class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading . . .
+		</div>
+            <form id="adc_form" action="#" method="POST" style="display: none;">
+               <div class="panel panel-default">
+                  <div class="panel-body">
+                     <input type="hidden" name="form" value="adc">
+                     <div class="form-group">
+                        <div class="input-group"><span class="input-group-addon">Enable </span><span class="form-control"><input type="checkbox" name="adc_bool"> </span></div>
+                     </div>
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Interval (minutes) </span>
+                           <select class="form-control" name="adc_interval" id="adc_interval">
+                           </select>
+                        </div>
+                     </div>
+                     <div class="form-group">
+                        <div class="input-group"><span class="input-group-addon" id="basic-addon1">Variable name </span><input type="text" id="adc_var" name="adc_var" value="" class="form-control" aria-describedby="basic-addon1"></div>
+                     </div>
+                  </div>
+                  <div class="panel-footer clearfix">
+                     <div class="pull-right"><button type="submit" class="btn btn-default">Send</button></div>
+                  </div>
+               </div>
+            </form>
             <div class="clearfix visible-lg"></div>
-         </div>
+			</div>
+			</div>
       </div>
-	  </div>
-	  </div>
-	  </div>
    </body>
 </html>

@@ -1,6 +1,6 @@
 var menu = '      <nav class="navbar navbar-default">' +
 '         <div class="container-fluid">' +
-'            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic</a></div>' +
+'            <div class="navbar-header"><a class="navbar-brand" href="/">ESPimatic <sup>v0.1.24</sup></a></div>' +
 '            <div>' +
 '               <ul class="nav navbar-nav">' +
 '                  <li class="dropdown">' +
@@ -14,6 +14,7 @@ var menu = '      <nav class="navbar navbar-default">' +
 '                              <li><a href="/irled.html">IR LED<span class="glyphicon glyphicon-eye-open pull-right"></span></a></li>' +
 '                              <li><a href="/relay.html">Relay<span class="glyphicon glyphicon-flash pull-right"></span></a></li>' +
 '                              <li><a href="/dht.html">DHT<span class="glyphicon glyphicon-tint pull-right"></span></a></li>' +
+'                              <li><a href="/adc.html">ADC<span class="glyphicon glyphicon-scale pull-right"></span></a></li>' +
 '                           </ul>' +
 '                        </li>' +
 '                        <li class="dropdown-submenu">' +

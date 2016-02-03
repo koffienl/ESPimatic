@@ -50,6 +50,8 @@ String MatrixIntensity;
 String DeviceName;
 String EnableWebAuth;
 String BSlocal;
+String ADCEnabled;
+int ADC;
 
 // EEPROM Adress & Length
 #define ssid_Address 0
@@ -94,8 +96,15 @@ String BSlocal;
 #define enablewebauth_Address 429
 #define espimaticapikey_Address 430
 #define bslocal_Address 445
-int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address, relay1type_Address, relay2type_Address, relay3type_Address, relay4type_Address, devicename_Address, webuser_Address, webpass_Address, enablewebauth_Address, espimaticapikey_Address, bslocal_Address};
-int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2, 1, 1 ,1 ,1, 30, 25, 25, 1, 15, 1};
+#define enableadc_Address 446
+#define adcinterval_Address 447
+#define adcvar_Address 449
+#define enableled_Address 449
+#define led1pin_Address 479
+#define led2pin_Address 481
+#define led3pin_Address 483
+int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address, relay1type_Address, relay2type_Address, relay3type_Address, relay4type_Address, devicename_Address, webuser_Address, webpass_Address, enablewebauth_Address, espimaticapikey_Address, bslocal_Address, enableadc_Address, adcinterval_Address, adcvar_Address, enableled_Address, led1pin_Address, led2pin_Address, led3pin_Address};
+int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2, 1, 1 ,1 ,1, 30, 25, 25, 1, 15, 1, 1, 2, 30};
 int StartAddress = 0;
 
 #define ErrorWifi 0
@@ -131,6 +140,8 @@ long ds18b20_sendInterval    = 60000; //in millis
 long ds18b20_lastInterval  = 0;
 long dht_sendInterval    = 60000; //in millis
 long dht_lastInterval  = 0;
+long adc_sendInterval    = 60000; //in millis
+long adc_lastInterval  = 0;
 
 ESP8266WebServer  server(80);
 //String ClientIP;
@@ -565,6 +576,8 @@ void setup()
   server.on("/relay_ajax", handle_relay_ajax);
   server.on("/dht_ajax", handle_dht_ajax);
   server.on("/esp_ajax", handle_esp_ajax);
+  server.on("/adc_ajax", handle_adc_ajax);
+  //server.on("/led_ajax", handle_led_ajax);
   server.on("/api", handle_api);
   server.on("/updatefwm", handle_updatefwm_html);
   server.on("/fupload", handle_fupload_html);
@@ -729,6 +742,8 @@ void setup()
     ds18b20_sendInterval = (ds18b20_interval.toInt() * 60000);
     get_ds18b20;
   }
+
+    ADCEnabled = HandleEeprom(enableadc_Address, "read");
 }
 
 String getContentType(String filename) {
@@ -1498,9 +1513,9 @@ void handle_root_ajax()
 
     // Collect free memory
     int FreeHeap = ESP.getFreeHeap();
-  
+
     // Glue everything together and send to client
-    server.send(200, "text/html", temperature + sep + Uptime + sep + matrix + sep + ir + sep + relay + sep + relay1 + sep + relay2 + sep + relay3 + sep + relay4 + sep + ESPimaticVersion + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + dht_temp + sep + dht_hum + sep + FSTotal + sep + FSUsed + sep + FreeHeap + sep + DeviceName + sep + EnableWebAuth);
+    server.send(200, "text/html", temperature + sep + Uptime + sep + matrix + sep + ir + sep + relay + sep + relay1 + sep + relay2 + sep + relay3 + sep + relay4 + sep + ESPimaticVersion + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + dht_temp + sep + dht_hum + sep + FSTotal + sep + FSUsed + sep + FreeHeap + sep + DeviceName + sep + EnableWebAuth + sep + ADC);
   }
 }
 
@@ -1661,6 +1676,130 @@ void handle_esp_ajax()
 
 	  }
 	}
+}
+
+/*
+void handle_led_ajax()
+{
+  if (!is_authenticated(0) && EnableWebAuth == "1")
+  {
+    server.send ( 200, "text/html", "unauthorized");
+  }
+  else
+  {
+    String form = server.arg("form");
+    if (form != "led")
+    {
+      String led_enable = HandleEeprom(enableled_Address, "read");
+      String led1pin = HandleEeprom(led1pin_Address, "read");
+      String led2pin = HandleEeprom(led2pin_Address, "read");
+      String led3pin = HandleEeprom(led3pin_Address, "read");
+
+    String led1pin_listbox = "";
+    String led2pin_listbox = "";
+    String led3pin_listbox = "";
+    
+    if (led1pin != "")
+    {
+      led1pin_listbox = HWListBox(0, 16, led1pin.toInt(), "led1_pin", "led");
+    }
+    else
+    {
+      led1pin_listbox = HWListBox(0, 16, -1, "led1_pin", "led1");
+    }
+
+    if (led2pin != "")
+    {
+      led2pin_listbox = HWListBox(0, 16, led2pin.toInt(), "led2_pin", "led");
+    }
+    else
+    {
+      led2pin_listbox = HWListBox(0, 16, -1, "led2_pin", "led2");
+    }
+
+    if (led3pin != "")
+    {
+      led3pin_listbox = HWListBox(0, 16, led3pin.toInt(), "led3_pin", "led");
+    }
+    else
+    {
+      led3pin_listbox = HWListBox(0, 16, -1, "led3_pin", "led3");
+    }
+
+      // Glue everything together and send to client
+//      server.send(200, "text/html", adc_enable + sep + adc_var + sep + adc_intlistbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    }
+    if (form == "adc")
+    {
+      String adc_boolArg = server.arg("adc_bool");
+      String adc_varArg = server.arg("adc_var");
+      String adc_intervalArg = server.arg("adc_interval");
+  
+      if (adc_boolArg == "on")
+      {
+        adc_boolArg = "1";
+      }
+      else
+      {
+        adc_boolArg = "0";
+      }
+
+      HandleEeprom(enableadc_Address, "write", adc_boolArg);
+      HandleEeprom(adcvar_Address, "write", adc_varArg);
+      HandleEeprom(adcinterval_Address, "write", adc_intervalArg);
+
+      server.send ( 200, "text/html", "OK");
+      delay(500);
+      //ESP.restart();
+    }
+  }
+}
+*/
+
+void handle_adc_ajax()
+{
+  if (!is_authenticated(0) && EnableWebAuth == "1")
+  {
+    server.send ( 200, "text/html", "unauthorized");
+  }
+  else
+  {
+    String form = server.arg("form");
+    if (form != "adc")
+    {
+      String adc_var = HandleEeprom(adcvar_Address, "read");
+      String adc_enable = HandleEeprom(enableadc_Address, "read");
+      String adc_interval = HandleEeprom(adcinterval_Address, "read");
+
+      String adc_intlistbox = ListBox(1, 5, adc_interval.toInt(), "adc_interval");
+
+      // Glue everything together and send to client
+      server.send(200, "text/html", adc_enable + sep + adc_var + sep + adc_intlistbox + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    }
+    if (form == "adc")
+    {
+      String adc_boolArg = server.arg("adc_bool");
+      String adc_varArg = server.arg("adc_var");
+      String adc_intervalArg = server.arg("adc_interval");
+  
+      if (adc_boolArg == "on")
+      {
+        adc_boolArg = "1";
+      }
+      else
+      {
+        adc_boolArg = "0";
+      }
+
+      HandleEeprom(enableadc_Address, "write", adc_boolArg);
+      HandleEeprom(adcvar_Address, "write", adc_varArg);
+      HandleEeprom(adcinterval_Address, "write", adc_intervalArg);
+
+      server.send ( 200, "text/html", "OK");
+      delay(500);
+      //ESP.restart();
+    }
+  }
 }
 
 void handle_ds18b20_ajax()
@@ -2083,6 +2222,15 @@ void loop (void)
     
     dht_lastInterval = millis();
   }
+
+  if (millis() - adc_lastInterval > adc_sendInterval && ADCEnabled == "1")
+  {
+    ADC = analogRead(A0);
+    String adc_var = HandleEeprom(adcvar_Address, "read");
+    send_data(String(ADC), adc_var);
+    adc_lastInterval = millis();    
+  }
+  
   server.handleClient();
 }
 
@@ -2189,6 +2337,11 @@ String HWListBox(int first, int last, int selected, String ListName, String Hard
     UsedPins[relay3_pos] = relay3_pin.toInt();
     UsedPins[relay4_pos] = relay4_pin.toInt();
   }
+
+  //if (led_enable == "1" && Hardware != "led")
+  //{
+    //UsedPins[led_pos] = led_pin.toInt();
+  //}
 
   if (selected == -1)
   {
