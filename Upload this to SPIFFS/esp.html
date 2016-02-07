@@ -101,6 +101,18 @@ $( document ).ready(function() {
 				if (values[26] == "1") { $("input[name=bslocal_bool]").prop("checked", true); }
 				if (values[26] == "0") { $("input[name=bslocal_bool]").prop("checked", false); }
 
+				if (values[27] == "1") { $("input[name=dsleep_bool]").prop("checked", true); }
+				if (values[27] == "0") { $("input[name=dsleep_bool]").prop("checked", false); }
+								
+				$("#dsleep_action").html(values[28]);
+				$("#dsleep_interval").html(values[29]);
+				$("#dsleep_backdoor").val(values[30]);
+				
+				// Add Deep Sleep description
+				$("#dsleep_action option[value='1']").text("DS18b20");
+				$("#dsleep_action option[value='2']").text("DHT");
+				$("#dsleep_action option[value='3']").text("ADC");
+
 
 				// Retrieve errors from ESP and show them on the page
 				if (values[21] == "1")  // error wifi
@@ -301,6 +313,37 @@ $( document ).ready(function() {
                      <input type='hidden' name='form' value='devicename'>
                      <div class='form-group'>
                         <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Device name </span><input type='text' id='devicename' name='devicename' value='' class='form-control' aria-describedby='basic-addon1'></div>
+                     </div>
+				</div>
+                  <div class='panel-footer clearfix'>
+                     <div class='pull-right'><button type='submit' class='btn btn-default'>Send</button></div>
+                  </div>
+               </div>
+            </form>
+            <div class='clearfix visible-lg'></div>
+            <form id='dsleep_form' action='#' method='POST'>
+               <div class='panel panel-default'>
+                  <div class='panel-body'>
+                     <input type='hidden' name='form' value='dsleep'>
+                     <div class="form-group">
+                        <div class="input-group"><span class="input-group-addon">Enable DeepSleep</span><span class="form-control"><input type="checkbox" name="dsleep_bool"> </span></div>
+                     </div>
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Sleep time (minutes) </span>
+                           <select class="form-control" name="dsleep_interval" id="dsleep_interval">
+                           </select>
+                        </div>
+                     </div>
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Action on wakeup </span>
+                           <select class="form-control" name="dsleep_action" id="dsleep_action">
+                           </select>
+                        </div>
+                     </div>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Backdoor variable </span><input type='text' id='dsleep_backdoor' name='dsleep_backdoor' value='' class='form-control' aria-describedby='basic-addon2'></div>
                      </div>
 				</div>
                   <div class='panel-footer clearfix'>

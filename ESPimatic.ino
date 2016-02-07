@@ -9,8 +9,6 @@
 #include <IRremoteESP8266.h>
 #include "DHT.h"
 #include <FS.h>
-#include <elapsedMillis.h>
-
 
 //holds the current upload
 File UploadFile;
@@ -34,8 +32,10 @@ String formatBytes(size_t bytes) {
 DHT dht = DHT(0, DHT11);
 IRsend irsend(5); //an IR led is connected to GPIO pin 0
 
+int TelnetMenu = -1;
+
 String sep = "____";
-String ESPimaticVersion = "0.1.25";
+String ESPimaticVersion = "0.1.26";
 String DS18B20Enabled = "0";
 String DHTEnabled = "0";
 String MatrixEnabled = "0";
@@ -52,6 +52,15 @@ String EnableWebAuth;
 String BSlocal;
 String ADCEnabled;
 int ADC;
+int userdone;
+int passworddone;
+String kwhintEnabled;
+int curWatts = 0;
+int totalWh = 0;
+int kwhintc;
+unsigned long pulseCountS = 0;
+unsigned long prevPulseS = 0;
+unsigned long pulseTimeS = 0;
 
 // EEPROM Adress & Length
 #define ssid_Address 0
@@ -67,7 +76,7 @@ int ADC;
 #define enabledht_Address 171
 #define dhttype_Address 172
 #define dhtpin_Address 173
-#define enablesleep_Address 175
+#define enabledsleep_Address 175
 #define ds18b20var_Address 176
 #define ds18b20interval_Address 206
 #define ds18b20resolution_Address 208
@@ -99,12 +108,21 @@ int ADC;
 #define enableadc_Address 446
 #define adcinterval_Address 447
 #define adcvar_Address 449
-#define enableled_Address 449
-#define led1pin_Address 479
-#define led2pin_Address 481
-#define led3pin_Address 483
-int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enablesleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address, relay1type_Address, relay2type_Address, relay3type_Address, relay4type_Address, devicename_Address, webuser_Address, webpass_Address, enablewebauth_Address, espimaticapikey_Address, bslocal_Address, enableadc_Address, adcinterval_Address, adcvar_Address, enableled_Address, led1pin_Address, led2pin_Address, led3pin_Address};
-int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2, 1, 1 ,1 ,1, 30, 25, 25, 1, 15, 1, 1, 2, 30};
+#define enableled_Address 479
+#define led1pin_Address 480
+#define led2pin_Address 482
+#define led3pin_Address 484
+#define led4pin_Address 486
+#define dsleepaction_Address 488
+#define kwhintenable_Address 490
+#define kwhintpin_Address 491
+#define kwhintinterval_Address 493
+#define kwhintc_Address 495
+#define kwhintvar_Address 500
+#define dsleepinterval_Address 530
+#define dsleepbackdoor_Address 532
+int EepromAdress[] = {ssid_Address, password_Address, pimhost_Address, pimport_Address, pimuser_Address, pimpass_Address, enablematrix_Address, matrixpin_Address, enableds18b20_Address, ds18b20pin_Address, enabledht_Address, dhttype_Address, dhtpin_Address, enabledsleep_Address, ds18b20var_Address, ds18b20interval_Address, ds18b20resolution_Address, enableir_Address, irpin_Address, enablerelay_Address, relay1pin_Address, relay2pin_Address, relay3pin_Address, dhttempvar_Address, dhthumvar_Address, dhtinterval_Address, relay4pin_Address, eeprommd5_Address, version_Address, availablegpio_Address, showonmatrix_Address, matrixintensity_Address, relay1type_Address, relay2type_Address, relay3type_Address, relay4type_Address, devicename_Address, webuser_Address, webpass_Address, enablewebauth_Address, espimaticapikey_Address, bslocal_Address, enableadc_Address, adcinterval_Address, adcvar_Address, enableled_Address, led1pin_Address, led2pin_Address, led3pin_Address, dsleepaction_Address, kwhintenable_Address, kwhintpin_Address, kwhintinterval_Address, kwhintc_Address, kwhintvar_Address, dsleepinterval_Address, dsleepbackdoor_Address};
+int EepromLength[] = {31, 65, 32, 5, 11, 20, 1, 2, 1, 2, 1, 1, 2, 1, 30, 2, 2, 1, 2, 1, 2, 2, 2, 30, 30, 2, 2, 32, 8, 17, 1, 2, 1, 1 ,1 ,1, 30, 25, 25, 1, 15, 1, 1, 2, 30, 1, 2, 2, 2, 2, 1, 2, 2, 5, 30, 2, 30};
 int StartAddress = 0;
 
 #define ErrorWifi 0
@@ -115,7 +133,7 @@ int StartAddress = 0;
 int ErrorList[] = {0, 0, 0, 0, 0};
 
 // Timer stuff
-elapsedMillis timeElapsed; //declare global if you don't want it reset every time loop runs
+//elapsedMillis timeElapsed; //declare global if you don't want it reset every time loop runs
 
 
 #define BASE64_LEN 40
@@ -142,10 +160,18 @@ long dht_sendInterval    = 60000; //in millis
 long dht_lastInterval  = 0;
 long adc_sendInterval    = 60000; //in millis
 long adc_lastInterval  = 0;
+long kwhint_sendInterval    = 60000; //in millis
+long kwhint_lastInterval  = 0;
+
+
+#define MAX_SRV_CLIENTS 1
+WiFiServer telnet(23);
+WiFiClient serverClients[MAX_SRV_CLIENTS];
+
 
 ESP8266WebServer  server(80);
-//String ClientIP;
 WiFiClient client;
+
 
 
 const static byte alphabetBitmap[41][8] = {
@@ -211,7 +237,9 @@ String HandleEeprom (int StartAddress, String action, String value = "")
   {
     for (int i = StartAddress; i < (StartAddress + EepromLength[ArrPos]); ++i)
     {
-      if (EEPROM.read(i) != 0) {
+      if (EEPROM.read(i) != 0 && EEPROM.read(i) != 255)
+      //if (EEPROM.read(i) != 0)
+      {
         Eeprom_Content += char(EEPROM.read(i));
       }
     }
@@ -244,7 +272,7 @@ String HandleEeprom (int StartAddress, String action, String value = "")
 
 int CheckEeprom()
 {
-  // Calculate MD5 of ALL eeprom valuesand compare with MD5 written in eeprom
+  // Calculate MD5 of ALL eeprom values and compare with MD5 written in eeprom
   MD5Builder md5;
   md5.begin();
 
@@ -324,19 +352,19 @@ void setup()
   int SizeOfArr = (sizeof(EepromAdress) / 4 ) - 1 ;
   int eeprom_alloc = EepromAdress[SizeOfArr] + EepromLength[SizeOfArr];
   EEPROM.begin(eeprom_alloc);
-  
-  // Check if EEPROM is valid
-  int EepromStatus = CheckEeprom();
-  if (EepromStatus != 1)
-  {
-    ErrorList[ErrorEeprom] = 1;
-  }
 
   String eepromVersion = HandleEeprom(version_Address, "read");
   if (eepromVersion != ESPimaticVersion)
   {
     ErrorList[ErrorUpgrade] = 1;
     HandleEeprom(version_Address, "write", ESPimaticVersion);
+  }
+  
+  // Check if EEPROM is valid
+  int EepromStatus = CheckEeprom();
+  if (EepromStatus != 1 && ErrorList[ErrorUpgrade] != 1)
+  {
+    ErrorList[ErrorEeprom] = 1;
   }
 
   // Check if SPIFFS is OK
@@ -562,7 +590,6 @@ void setup()
 
   // Format Flash ROM - dangerous! Remove if you dont't want this option!
   server.on ( "/format", handleFormat );
-  
 
   server.on("/ping", handle_ping);
   server.on("/loginm", handle_loginm_html);
@@ -577,6 +604,7 @@ void setup()
   server.on("/dht_ajax", handle_dht_ajax);
   server.on("/esp_ajax", handle_esp_ajax);
   server.on("/adc_ajax", handle_adc_ajax);
+  server.on("/kwhint_ajax", handle_kwhint_ajax);
   //server.on("/led_ajax", handle_led_ajax);
   server.on("/api", handle_api);
   server.on("/updatefwm", handle_updatefwm_html);
@@ -687,8 +715,14 @@ void setup()
   size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
   //ask server to track these headers
   server.collectHeaders(headerkeys, headerkeyssize );
+
+  telnet.begin();
+  telnet.setNoDelay(true);
+
+  
   server.begin();
   Serial.println("HTTP server started");
+
 
   EnableWebAuth = HandleEeprom(enablewebauth_Address, "read");
 
@@ -744,6 +778,66 @@ void setup()
   }
 
     ADCEnabled = HandleEeprom(enableadc_Address, "read");
+    kwhintEnabled = HandleEeprom(kwhintenable_Address, "read");
+    if (kwhintEnabled == "1")
+    {
+      String c = HandleEeprom(kwhintc_Address, "read");
+      kwhintc = c.toInt();
+      String kwhintpin = HandleEeprom(kwhintpin_Address, "read");
+      pinMode(kwhintpin.toInt(), INPUT);
+      attachInterrupt(kwhintpin.toInt(), handle_kwh_interrupt, FALLING);
+    }
+
+  String DSEnabled = HandleEeprom(enabledsleep_Address, "read");
+  if (DSEnabled == "1")
+  {
+    String DSbackdoor = HandleEeprom(dsleepbackdoor_Address, "read");
+    String DSbackdoorEnabled = get_data(DSbackdoor);
+    if (DSbackdoorEnabled != "1")
+    {
+      String DSaction = HandleEeprom(dsleepaction_Address, "read");
+      String sleeptime = HandleEeprom(dsleepinterval_Address, "read");
+      if (DSaction == "1") //DS18B20
+      {
+        String temp = get_ds18b20();
+        String ds18b20_var = HandleEeprom(ds18b20var_Address, "read");
+        send_data(temp, ds18b20_var);
+      }
+      if (DSaction == "2") //DHT
+      {
+        String dhttemp_var = HandleEeprom(dhttempvar_Address, "read");
+        String dhthum_var = HandleEeprom(dhthumvar_Address, "read");
+        String dhtTempHum = get_dht();
+
+        int commaIndex = dhtTempHum.indexOf(",");
+        int secondCommaIndex = dhtTempHum.indexOf(",", commaIndex+1);
+        String dht_temp = dhtTempHum.substring(0, commaIndex);
+        String dht_hum = dhtTempHum.substring(commaIndex+1, secondCommaIndex);
+    
+        if(dht_temp != "nan")
+        {
+          send_data(dht_temp, dhttemp_var);
+        }
+        if(dht_hum != "nan")
+        {
+          send_data(dht_hum, dhthum_var);
+        }
+      }
+      if (DSaction == "3") //ADC
+      {
+        ADC = analogRead(A0);
+        String adc_var = HandleEeprom(adcvar_Address, "read");
+        send_data(String(ADC), adc_var);
+      }
+      Serial.println("Done. Sleeping for " + String(sleeptime.toInt()) + " minutes");
+      ESP.deepSleep((sleeptime.toInt() * 60000000), WAKE_RF_DEFAULT); // Sleep for 60 seconds
+    }
+    else
+    {
+      Serial.println("DeepSleep is enabled, but backdoor value found at " + String(DSbackdoor));
+    }
+  }
+    
 }
 
 String getContentType(String filename) {
@@ -783,7 +877,7 @@ bool handleFileRead(String path)
   {
     // ingelogd?
     String header;
-    if (!is_authenticated(1) && path != "/login.html" && EnableWebAuth == "1")
+    if (!is_authenticated(1) && path != "/login.html" && EnableWebAuth == "1" && !path.startsWith("/js/insert-"))
     {
       String header = "HTTP/1.1 301 OK\r\nLocation: /login.html\r\nCache-Control: no-cache\r\n\r\n";
       server.sendContent(header); 
@@ -823,7 +917,7 @@ void handle_api()
   String api = server.arg("api");
   String EspimaticApi = HandleEeprom(espimaticapikey_Address, "read");
 
-  if (api != EspimaticApi && EnableWebAuth == "1")
+  if (api != EspimaticApi && EnableWebAuth == "1" && !is_authenticated(0) )
   {
     server.send ( 200, "text/html", "unauthorized");
     delay(500);
@@ -1399,7 +1493,8 @@ void handle_root_ajax()
   }
   else
   {
-    String disabled = "<span class='glyphicon glyphicon-ban-circle pull-right'>";
+    //String disabled = "<span class='glyphicon glyphicon-ban-circle pull-right'>";
+    String disabled = "DISABLED";
     String enabled =  "<span class='glyphicon glyphicon-ok-circle pull-right'>";
     String relay_on = "<span class='glyphicon glyphicon-resize-small pull-right'>";
     String relay_off = "<span class='glyphicon glyphicon-resize-full pull-right'>";
@@ -1423,13 +1518,13 @@ void handle_root_ajax()
       dht_hum = LastDHThum + String(" &nbsp;%");
     }
 
-
     // Collect everything for uptime
-    long milliseconds   = (long) (timeElapsed / 1000000) % 1000;
-    long seconds    = (long) ((timeElapsed / (1000)) % 60);
-    long minutes    = (long) ((timeElapsed / (60000)) % 60);
-    long hours      = (long) ((timeElapsed / (3600000)) % 24);
-    long days       = (long) ((timeElapsed / (86400000)) % 10);
+    long milliseconds   = millis();
+    long seconds    = (long) ((millis() / (1000)) % 60);
+    long minutes    = (long) ((millis() / (60000)) % 60);
+    long hours      = (long) ((millis() / (3600000)) % 24);
+    long days       = (long) ((millis() / (86400000)) % 10);
+
   
     String Uptime     = days + String (" d ") + hours + String(" h ") + minutes + String(" min ") + seconds + String(" sec");
 
@@ -1511,11 +1606,25 @@ void handle_root_ajax()
         }
     }
 
+    // Collect ADC
+    String ADCvalue = disabled;
+    if(ADCEnabled == "1")
+    {
+      ADCvalue = String(ADC);
+    }
+
+    // Collect kwh
+    String curWattsValue = disabled;
+    if(kwhintEnabled == "1")
+    {
+      curWattsValue = String(curWatts);
+    }
+
     // Collect free memory
     int FreeHeap = ESP.getFreeHeap();
 
     // Glue everything together and send to client
-    server.send(200, "text/html", temperature + sep + Uptime + sep + matrix + sep + ir + sep + relay + sep + relay1 + sep + relay2 + sep + relay3 + sep + relay4 + sep + ESPimaticVersion + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + dht_temp + sep + dht_hum + sep + FSTotal + sep + FSUsed + sep + FreeHeap + sep + DeviceName + sep + EnableWebAuth + sep + ADC);
+    server.send(200, "text/html", temperature + sep + Uptime + sep + matrix + sep + ir + sep + relay + sep + relay1 + sep + relay2 + sep + relay3 + sep + relay4 + sep + ESPimaticVersion + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + dht_temp + sep + dht_hum + sep + FSTotal + sep + FSUsed + sep + FreeHeap + sep + DeviceName + sep + EnableWebAuth + sep + ADCvalue + sep + curWattsValue);
   }
 }
 
@@ -1529,7 +1638,7 @@ void handle_esp_ajax()
   else
   {
 	  String form = server.arg("form");
-	  if (form != "esp" && form != "gpio" && form != "security"  && form != "bslocal")
+	  if (form != "esp" && form != "gpio" && form != "security"  && form != "bslocal" && form != "dsleep")
 	  {
 		// Get device name
 		DeviceName = HandleEeprom(devicename_Address, "read");
@@ -1571,8 +1680,16 @@ void handle_esp_ajax()
 		char gpio15 = AllGpio[15];
 		char gpio16 = AllGpio[16];
 
+    // Get DeepSleep
+    String dsleep_enable = HandleEeprom(enabledsleep_Address, "read");
+    String dsleep_action = HandleEeprom(dsleepaction_Address, "read");
+    String dsleep_interval = HandleEeprom(dsleepinterval_Address, "read");
+    String dsleep_backdoor = HandleEeprom(dsleepbackdoor_Address, "read");
+    String dsleep_intlistbox = ListBox(1, 60, dsleep_interval.toInt(), "dsleep_interval");
+    String dsleep_actionlistbox = ListBox(1, 3, dsleep_action.toInt(), "dsleep_action");
+
 		// Glue everything together and send to client
-		server.send(200, "text/html", gpio0 + sep + gpio1 + sep + gpio2 + sep + gpio3 + sep + gpio4 + sep + gpio5 + sep + gpio6 + sep + gpio7 + sep + gpio8 + sep + gpio9 + sep + gpio10 + sep + gpio11 + sep + gpio12 + sep + gpio13 + sep + gpio14 + sep + gpio15 + sep + gpio16 + sep + DeviceName + sep + EnableWebAuth + sep + WebUser + sep + WebPass  + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + EspimaticApi + sep + BSlocal);
+		server.send(200, "text/html", gpio0 + sep + gpio1 + sep + gpio2 + sep + gpio3 + sep + gpio4 + sep + gpio5 + sep + gpio6 + sep + gpio7 + sep + gpio8 + sep + gpio9 + sep + gpio10 + sep + gpio11 + sep + gpio12 + sep + gpio13 + sep + gpio14 + sep + gpio15 + sep + gpio16 + sep + DeviceName + sep + EnableWebAuth + sep + WebUser + sep + WebPass  + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade] + sep + EspimaticApi + sep + BSlocal+ sep + dsleep_enable + sep + dsleep_actionlistbox + sep + dsleep_intlistbox + sep + dsleep_backdoor);
 	  }
 	  if (form == "devicename")
 	  {
@@ -1586,23 +1703,21 @@ void handle_esp_ajax()
 
 	  if (form == "bslocal")
 	  {
-		String bslocalArg = server.arg("bslocal_bool");
+		  String bslocalArg = server.arg("bslocal_bool");
 
-		if (bslocalArg == "on")
-		{
-		  bslocalArg = "1";
-		}
-		else
-		{
-		  bslocalArg = "0";
-		}
+		  if (bslocalArg == "on")
+		  {
+  		  bslocalArg = "1";
+		  }
+		  else
+		  {
+  		  bslocalArg = "0";
+		  }
 
-
-		HandleEeprom(bslocal_Address, "write", bslocalArg);
-		BSlocal == bslocalArg;
-		server.send ( 200, "text/html", "OK");
-		delay(500);
-		//ESP.restart();
+		  HandleEeprom(bslocal_Address, "write", bslocalArg);
+		  BSlocal == bslocalArg;
+		  server.send ( 200, "text/html", "OK");
+		  delay(500);
 	  }
 
 	  if (form == "gpio")
@@ -1659,6 +1774,7 @@ void handle_esp_ajax()
 		if (securityArg == "on")
 		{
 		  securityArg = "1";
+      EnableWebAuth = "1";
 		}
 		else
 		{
@@ -1669,12 +1785,37 @@ void handle_esp_ajax()
 		HandleEeprom(webuser_Address, "write", usernameArg);
 		HandleEeprom(webpass_Address, "write", passwordArg);
 		HandleEeprom(espimaticapikey_Address, "write", apikeyArg);
-		EnableWebAuth = "1";
 		server.send ( 200, "text/html", "OK");
 		delay(500);
 		//ESP.restart();
 
 	  }
+
+    if (form == "dsleep")
+    {
+      String dsleepArg = server.arg("dsleep_bool");
+      String dsleep_intervalArg = server.arg("dsleep_interval");
+      String dsleep_actionArg = server.arg("dsleep_action");
+      String dsleep_backdoorArg = server.arg("dsleep_backdoor");
+
+      if (dsleepArg == "on")
+      {
+        dsleepArg = "1";
+      }
+      else
+      {
+        dsleepArg = "0";
+      }
+
+      HandleEeprom(enabledsleep_Address, "write", dsleepArg);
+      HandleEeprom(dsleepaction_Address, "write", dsleep_actionArg);
+      HandleEeprom(dsleepinterval_Address, "write", dsleep_intervalArg);
+      HandleEeprom(dsleepbackdoor_Address, "write", dsleep_backdoorArg);
+      server.send ( 200, "text/html", "OK");
+      delay(500);
+      ESP.restart();
+    }
+   
 	}
 }
 
@@ -1797,7 +1938,7 @@ void handle_adc_ajax()
 
       server.send ( 200, "text/html", "OK");
       delay(500);
-      //ESP.restart();
+      ESP.restart();
     }
   }
 }
@@ -1861,6 +2002,79 @@ void handle_ds18b20_ajax()
       server.send ( 200, "text/html", "OK");
       delay(500);
       ESP.restart();
+    }
+  }
+}
+
+void handle_kwhint_ajax()
+{
+  if (!is_authenticated(0) && EnableWebAuth == "1")
+  {
+    server.send ( 200, "text/html", "unauthorized");
+  }
+  else
+  {
+    String form = server.arg("form");
+    if (form != "kwhint")
+    {
+      String kwhint_var = HandleEeprom(kwhintvar_Address, "read");
+      String kwhint_c = HandleEeprom(kwhintc_Address, "read");
+      String kwhint_enable = HandleEeprom(kwhintenable_Address, "read");
+      String kwhint_pin = HandleEeprom(kwhintpin_Address, "read");
+      String kwhint_interval = HandleEeprom(kwhintinterval_Address, "read");
+      String kwhint_listbox = "";
+      if (kwhint_pin != "")
+      {
+          kwhint_listbox = HWListBox(0, 16, kwhint_pin.toInt(), "kwhint_pin", "kwhint");
+      }
+      else
+      {
+        kwhint_listbox = HWListBox(0, 16, -1, "kwhint_pin", "kwhint");
+      }
+      
+      String kwhint_intlistbox = ListBox(1, 5, kwhint_interval.toInt(), "kwhint_interval");
+Serial.println("lezen var: " + String(kwhint_var) );
+Serial.println("lezen c: " + String(kwhint_c) );
+Serial.println("lezen enable: " + String(kwhint_enable) );
+Serial.println("lezen pin: " + String(kwhint_pin) );
+Serial.println("lezen inteval: " + String(kwhint_interval) );
+
+      // Glue everything together and send to client
+      server.send(200, "text/html", kwhint_enable + sep + kwhint_listbox + sep + kwhint_intlistbox + sep + kwhint_var + sep + kwhint_c + sep + ErrorList[ErrorWifi] + sep + ErrorList[ErrorEeprom] + sep + ErrorList[ErrorDs18b20] + sep + ErrorList[ErrorUpgrade]);
+    }
+    if (form == "kwhint")
+    {
+      String kwhint_boolArg = server.arg("kwhint_bool");
+      String kwhint_pinArg = server.arg("kwhint_pin");
+      String kwhint_varArg = server.arg("kwhint_var");
+      String kwhint_intervalArg = server.arg("kwhint_interval");
+      String kwhint_cArg = server.arg("kwhint_c");
+
+Serial.println("schrijven var: " + String(kwhint_varArg) );
+Serial.println("schrijven c: " + String(kwhint_cArg) );
+Serial.println("schrijven enable: " + String(kwhint_boolArg) );
+Serial.println("schrijven pin: " + String(kwhint_pinArg) );
+Serial.println("schrijven inteval: " + String(kwhint_intervalArg) );
+
+  
+      if (kwhint_boolArg == "on")
+      {
+        kwhint_boolArg = "1";
+      }
+      else
+      {
+        kwhint_boolArg = "0";
+      }
+
+      HandleEeprom(kwhintenable_Address, "write", kwhint_boolArg);
+      HandleEeprom(kwhintpin_Address, "write", kwhint_pinArg);
+      HandleEeprom(kwhintvar_Address, "write", kwhint_varArg);
+      HandleEeprom(kwhintinterval_Address, "write", kwhint_intervalArg);
+      HandleEeprom(kwhintc_Address, "write", kwhint_cArg);
+
+      server.send ( 200, "text/html", "OK");
+      delay(500);
+      //ESP.restart();
     }
   }
 }
@@ -2111,6 +2325,66 @@ void send_data(String data, String sensor)
   }
 }
 
+String get_data(String var)
+{
+  String rcv;
+  String PimaticHostStored = HandleEeprom(pimhost_Address, "read");
+  String PimaticPortStored = HandleEeprom(pimport_Address, "read");
+  String PimaticUserStored = HandleEeprom(pimuser_Address, "read");
+  String PimaticPassStored = HandleEeprom(pimpass_Address, "read");
+
+  String yourdata;
+  char uname[BASE64_LEN];
+  String str = String(PimaticUserStored) + ":" + String(PimaticPassStored);
+  str.toCharArray(uname, BASE64_LEN);
+  memset(unameenc, 0, sizeof(unameenc));
+  base64_encode(unameenc, uname, strlen(uname));
+
+
+  const char* Hostchar = PimaticHostStored.c_str();
+  const char* Portchar = PimaticPortStored.c_str();
+  if (!client.connect(PimaticHostStored.c_str(), PimaticPortStored.toInt()))
+  {
+    Serial.println("connection failed");
+    return rcv;
+  }
+
+  //yourdata = "{\"type\": \"value\", \"valueOrExpression\": \"" + data + "\"}";
+
+  client.print("GET /api/variables/");
+  client.print(var);
+  client.print(" HTTP/1.1\r\n");
+  client.print("Authorization: Basic ");
+  client.print(unameenc);
+  client.print("\r\n");
+  client.print("Host: " + PimaticHostStored +"\r\n");
+  client.print("Content-Type:application/json\r\n");
+  //client.print("Content-Length: ");
+  //client.print(yourdata.length());
+  client.print("\r\n\r\n");
+  //client.print(yourdata);
+  const char* status = "true";
+
+  delay(500);
+
+  // Read all the lines of the reply from server and print them to Serial
+  while (client.available()) {
+    String line = client.readStringUntil('\r');
+    if (line.indexOf("\"value\": ") > 0)
+    {
+      rcv += line;
+    }
+  }
+
+
+//'   "value": 17'
+  
+  rcv.replace("\n", "|");
+  rcv = getValue(rcv, '|', 6);
+  rcv = rcv.substring(13, (rcv.length() - 1) );
+  return rcv;
+}
+
 String get_dht()
 {    
   String dht_type = HandleEeprom(dhttype_Address, "read");
@@ -2230,8 +2504,22 @@ void loop (void)
     send_data(String(ADC), adc_var);
     adc_lastInterval = millis();    
   }
-  
+
+  if (millis() - kwhint_lastInterval > kwhint_sendInterval && kwhintEnabled == "1")
+  {
+    String kwhint_var = HandleEeprom(kwhintvar_Address, "read");
+    send_data(String(curWatts), kwhint_var);
+    kwhint_lastInterval = millis();    
+  }
   server.handleClient();
+}
+
+
+void handle_telnet_cls(int i)
+{
+  // Clear screen first
+  serverClients[i].write("\u001B[2J");
+  serverClients[i].write("\u001B[H");
 }
 
 void CharOnLED(int ch, int led)
@@ -2255,7 +2543,7 @@ void CharOnLED(int ch, int led)
 String HWListBox(int first, int last, int selected, String ListName, String Hardware)
 {
   String HTML = "";
-  int UsedPins[] = {99, 99, 99, 99, 99, 99, 99, 99 , 99};
+  int UsedPins[] = {99, 99, 99, 99, 99, 99, 99, 99 , 99, 99, 99};
   int ds18b20_pos = 0;
   int matrix1_pos = 1;
   int matrix2_pos = 2;
@@ -2265,11 +2553,16 @@ String HWListBox(int first, int last, int selected, String ListName, String Hard
   int relay2_pos = 6;
   int relay3_pos = 7;
   int relay4_pos = 8;
+  int kwhint_pos = 9;
+  int dsleep_pos = 9;
 
   String matrix_enable = HandleEeprom(enablematrix_Address, "read");
   String ds18b20_enable = HandleEeprom(enableds18b20_Address, "read");
   String relay_enable = HandleEeprom(enablerelay_Address, "read");
   String irled_enable = HandleEeprom(enableir_Address, "read");
+  String kwhint_enable = HandleEeprom(kwhintenable_Address, "read");
+  String deepsleep_enable = HandleEeprom(enabledsleep_Address, "read");
+  
 
   String matrix_pin = HandleEeprom(matrixpin_Address, "read");
   String irled_pin = HandleEeprom(irpin_Address, "read");
@@ -2278,6 +2571,7 @@ String HWListBox(int first, int last, int selected, String ListName, String Hard
   String relay2_pin = HandleEeprom(relay2pin_Address, "read");
   String relay3_pin = HandleEeprom(relay3pin_Address, "read");
   String relay4_pin = HandleEeprom(relay4pin_Address, "read");
+  String kwhint_pin = HandleEeprom(kwhintpin_Address, "read");
 
 
     String AllGpio = HandleEeprom(availablegpio_Address, "read");
@@ -2305,7 +2599,18 @@ String HWListBox(int first, int last, int selected, String ListName, String Hard
     char gpio14 = AllGpio[14];
     char gpio15 = AllGpio[15];
     char gpio16 = AllGpio[16];
-  
+
+  if (deepsleep_enable == "1")
+  {
+    //GPIO16 is connected to RESET pin
+    UsedPins[dsleep_pos] = 16;
+  }
+
+  if (kwhint_enable == "1" && Hardware != "kwhint")
+  {
+    UsedPins[kwhint_pos] = kwhint_pin.toInt();
+  }
+
 
   if (matrix_enable == "1")
   {
@@ -2503,3 +2808,28 @@ bool is_authenticated(int SetCookie)
   return false;  
 }
 
+void handle_kwh_interrupt()
+{
+    pulseCountS++;
+    pulseTimeS = (millis() - prevPulseS);  
+    prevPulseS = millis();
+    curWatts = (( 3600000 / kwhintc ) * 1000 ) / pulseTimeS;
+    totalWh = (pulseCountS * 1000) / kwhintc;  // LET OP Wh!
+}
+
+String getValue(String data, char separator, int index)
+{
+  int found = 0;
+  int strIndex[] = {0, -1};
+  int maxIndex = data.length()-1;
+
+  for(int i=0; i<=maxIndex && found<=index; i++){
+    if(data.charAt(i)==separator || i==maxIndex){
+        found++;
+        strIndex[0] = strIndex[1]+1;
+        strIndex[1] = (i == maxIndex) ? i+1 : i;
+    }
+  }
+
+  return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
+}

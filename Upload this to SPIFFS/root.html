@@ -52,29 +52,56 @@ $( document ).ready(function() {
 			success: function(html)
 			{
 				var values = html.split("____");
-				$("#ds18b20_temperature").html(values[0]);
-				$("#uptime").html(values[1]);
-				$("#matrix").html(values[2]);
-				$("#irled").html(values[3]);
-				$("#relay").html(values[4]);
-				$("#devicename").html(values[19]);
-			
-				// Hide relay status if relay option is disabled
-				if ( values[4].indexOf('glyphicon-ban-circle') !== -1 )
+				if (values[0] != "DISABLED")
 				{
-					$("#relays").hide();
+					$("#ds18b20_panel").show();
+					$("#empty_sensors").hide();
+					$("#ds18b20_temperature").html(values[0]);
 				}
-				else
+				$("#uptime").html(values[1]);
+				if (values[2] != "DISABLED")
 				{
+					$("#matrix_panel").show();
+					$("#empty_devices").hide();
+					$("#matrix").html(values[2]);
+				}
+				if (values[3] != "DISABLED")
+				{
+					$("#irled_panel").show();
+					$("#empty_devices").hide();
+					$("#irled").html(values[3]);
+				}
+				if (values[14] != "DISABLED" && values[15] != "DISABLED")
+				{
+					$("#dht_panel").show();
+					$("#empty_sensors").hide();
+					$("#dht_temperature").html(values[14]);
+					$("#dht_humidity").html(values[15]);
+				}
+				if (values[21] != "DISABLED")
+				{
+					$("#adc_panel").show();
+					$("#empty_sensors").hide();
+					$("#adc_value").html(values[21]);
+				}
+				if (values[22] != "DISABLED")
+				{
+					$("#kwhint_panel").show();
+					$("#empty_sensors").hide();
+					$("#kwhint_value").html(values[22]);
+				}
+				if (values[4] != "DISABLED")
+				{
+					$("#relay_panel").show();
+					$("#empty_devices").hide();
 					$("#relay1").html(values[5]);
 					$("#relay2").html(values[6]);
 					$("#relay3").html(values[7]);
 					$("#relay4").html(values[8]);
 				}
+				$("#devicename").html(values[19]);
 			
 				$("#version").html(values[9]);
-				$("#dht_temperature").html(values[14]);
-				$("#dht_humidity").html(values[15]);
 				var InUse = Math.round(( values[17] / (values[16] / 100) ));
 				$("#flash").html(InUse + "%");
 				$("#memory").html(values[18] + " bytes");
@@ -82,8 +109,6 @@ $( document ).ready(function() {
 				{
 					$("#logoff").show();			
 				}
-				
-				$("#adc_value").html(values[21]);
 				
 				// Retrieve errors from ESP and show them on the page
 				if (values[10] == "1")  // error wifi
@@ -215,17 +240,23 @@ $( document ).ready(function() {
          <div class="page-header">
             <h1>Sensor data</h1>
          </div>
-         <div class="panel panel-default">
+         <div class="panel panel-default" id="empty_sensors">
+            <div class="panel-body"><span class="glyphicon glyphicon-ban-circle"></span> You have no configured sensors<span class="pull-right"></span></div>
+         </div>
+         <div class="panel panel-default" id="ds18b20_panel" style="display: none;">
             <div class="panel-body"><span class="glyphicon glyphicon-fire"></span> DS18B20 Temperature<span class="pull-right" id="ds18b20_temperature"></span></div>
          </div>
-         <div class="panel panel-default">
+         <div class="panel panel-default" id="dht_panel" style="display: none;">
             <div class="panel-body">
 				<span class="glyphicon glyphicon-fire"></span> DHT Temperature<span class="pull-right" id="dht_temperature"></span>
 				<p class="text-left"><span class="glyphicon glyphicon-tint"></span> DHT Humidity<span class="pull-right" id="dht_humidity"></span><br>
 			</div>
          </div>
-         <div class="panel panel-default">
+         <div class="panel panel-default" id="adc_panel" style="display: none;">
             <div class="panel-body"><span class="glyphicon glyphicon-scale"></span> ADC value<span class="pull-right" id="adc_value"></span></div>
+         </div>
+         <div class="panel panel-default" id="kwhint_panel" style="display: none;">
+            <div class="panel-body"><span class="glyphicon glyphicon-flash"></span> Current Watts<span class="pull-right" id="kwhint_value"></span></div>
          </div>
       </div>
       <div class="col-md-4">
@@ -252,15 +283,18 @@ $( document ).ready(function() {
       <div class="page-header">
          <h1>Device status</h1>
       </div>
-      <div class="panel panel-default">
+         <div class="panel panel-default" id="empty_devices">
+            <div class="panel-body"><span class="glyphicon glyphicon-ban-circle"></span> You have no configured devices<span class="pull-right"></span></div>
+         </div>
+      <div class="panel panel-default" id="matrix_panel" style="display: none;">
          <div class="panel-body"><span class="glyphicon glyphicon-equalizer"></span> LED Matrix<span class="pull-right"><span id="matrix"></span></span></div>
       </div>
-      <div class="panel panel-default">
+      <div class="panel panel-default" id="irled_panel" style="display: none;">
          <div class="panel-body"><span class="glyphicon glyphicon-eye-open"></span> IR LED<span class="pull-right"><span id="irled"></span></span></div>
       </div>
-      <div class="panel panel-default">
+      <div class="panel panel-default" id="relay_panel" style="display: none;">
          <div class="panel-body">
-            <span class="glyphicon glyphicon-flash"></span> Relay<span class="pull-right"><span id="relay"></span></span>
+
             <p class="text-left" id="relays"><span class="glyphicon glyphicon-flash"></span> Relay 1<span id="relay1"></span><br>
 			<span class="glyphicon glyphicon-flash"></span> Relay 2<span id="relay2"></span><br>
 			<span class="glyphicon glyphicon-flash"></span> Relay 3<span id="relay3"></span><br>
